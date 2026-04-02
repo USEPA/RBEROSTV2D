@@ -1,0 +1,338 @@
+---
+title: "Run RBEROST - Pacific Batch Processing"
+date: "10/31/2025"
+output: html_document
+---
+
+## Configure R
+This code will load the required R packages that RBEROST uses. To run the code, click the green triangle "Run Current Chunk" below. If no green arrow appears, and instead there is a red square, click the red square to stop any ongoing processes and a green triangle should appear in its place. When clicked, the green triangle will turn into a red square until the code is finished.
+
+**Important:** Please open this project by double-clicking `Tier_1_Optimization-SSWR_5_3_2.Rproj` to ensure proper package management via renv.
+
+The package installation may take several minutes the first time you run this code chunk. Follow any prompts that appear in the R console to complete package installation.
+You may need to use renv::install("package_name") to manually install any packages that fail to install automatically. When renv::status() shows that all packages are installed, proceed to the next code chunk.
+
+```{r configureR}
+
+# Check renv status to ensure all packages are installed
+renv::status()
+
+# If packages are missing, restore the environment from the renv package list
+renv::restore()
+
+# If any packages are still missing, manually install them using renv::install("package_name")
+# Example: renv::install("tidyverse") # Comment out or remove this line after installing the package
+
+```
+
+## Load all required packages
+This code chunk will load all required R packages. To run the code, click the green triangle.
+If there are any errors indicating that a package is not installed, please refer to the previous code chunk to install missing packages.
+
+```{r loadpackages}
+# Load required packages
+library(tidyverse)
+library(units)
+library(dplyr)
+library(measurements)
+library(reshape2)
+library(data.table)
+library(stringr)
+library(foreach)
+library(shiny)
+library(shinycssloaders)
+library(tidygraph)
+library(bit64)
+library(beepr)
+library(rneos)
+library(doParallel)
+library(magrittr)
+```
+
+## Run Batch Preprocessor
+
+To run the batch preprocessor, configure the settings below and click the green triangle. This will process multiple watersheds sequentially, creating separate output folders for each watershed containing AMPL files and NEOS results.
+
+```{r runbatchpreprocessor, warning = FALSE}
+
+#
+#
+#
+### Set file paths and required file names ###############################################################################################
+
+# This variable represents the working directory where RBEROST is located. 
+# You will need to write out the full path ending with the "Tier_1_Optimization-SSWR_5_3_2/" folder.
+working_dir <- "C:/RBEROST/Tier_1_Optimization-SSWR.5.3.2/"
+
+# This variable represents the location of input data files used to develop AMPL model files.  
+# If you have not changed the folder structure, you should not need to change this variable.
+InPath<-paste0(working_dir, "RBEROST-Pacific/Preprocessing/Inputs/")
+
+# This variable represents the location where AMPL model files will be printed for use on the NEOS server. 
+# If you have not changed the folder structure, you should not need to change this variable.
+OutPath<-paste0(working_dir, "RBEROST-Pacific/Preprocessing/Outputs/")
+
+### User Interface ###############################################################################################
+MODE <- "Select"
+# Mode Options
+# "All" will run all watersheds in Puget Sound
+# "Select" will only run select watersheds singled out in the all_watersheds vector
+
+# Select years to include in the model
+model_years <- c("1") #, "2", ..., "16"
+# Note: years are available from 1 to 16; corresponding to years 2005-2020
+
+# This variable represents the planning horizon in terms of years. Default is 15.
+horizon <- 15
+
+# This variable represents to expected interest rate. Default is 0.03, or 3%.
+interest_rate <- 0.03
+
+# Load parameter specification
+actionable_load <- TRUE # If TRUE, the model will exclude "other" loads from sources such as snowmelt and atmospheric deposition for which there are no applicable BMPs that can reduce them
+# Note: Setting to FALSE is much more likely to result in infeasible results since "other" loads typically make up sizeable portions of overall loadings within a watershed, and as such the reduction target percentages exceed the amount that can be reduced by BMPs in other categories. 
+
+# This variable lets the user decide if they wish to consider agricultural BMP efficiencies of practices versus "No Practice" (a default of no conservation practices) or "Baseline" (a default of practices currently in place, and implementing a BMP will remove practices currently in place).
+AgBMPcomparison <- "No Practice"
+
+# This variable decides if you will run RBEROST with or without uncertainty. It can be TRUE or FALSE. Running with uncertainty takes longer than running without.
+IncludeUncertainty <- TRUE
+
+# If running RBEROST with uncertainty, how many scenarios would you like to view? Default is 3.
+n.scenarios <- 3 
+
+# If running RBEROST with uncertainty, how different would you like the scenarios to be? Each scenario will be solved for loading limits that are a certain percentage lower than the previous. Default is 0.20, or 20%.
+scenariostepchange <- 0.2
+
+
+### BMP Specifications
+
+# -------------General notes-------------
+
+# 1. User must specify which BMPs will be considered in the optimization by specifying "X" in the BMP_Selection field of "01_UserSpecs_BMPs.csv"
+# 2. Current input data refers to Puget Sound SPARROW loading data and land use data specific to Washington State
+# 3. If more advanced R users would like to assess different locations/data, they would need to search for and update lines of code in the preprocessing code that end in "#*#" 
+
+# NEOS configuration
+email <- "detenbeck.naomi@epa.gov"
+NEOSresults <- "RBEROST-Pacific/Preprocessing/Outputs/Batch Results Still/"
+comments <- "Batch watershed optimization run 11-1-25 for testing"
+
+# ----- Do not change anything below this line -------
+suppressWarnings({
+setwd(working_dir)
+})
+
+# Create year crosswalk that will be used to filter dataframes that use YYYY format
+year_xwalk <- data.frame(c(1:16), c(2005:2020))
+colnames(year_xwalk) <- c("model_year", "year")
+year_xwalk <- year_xwalk %>%
+  filter(model_year %in% model_years)
+
+year_filter <- as.numeric(unique(year_xwalk$year))
+
+invisible(source("./RBEROST-Pacific/R/Optimization_HelperFunctions-Pacific.R"))
+
+# source urban and road cost estimate code to calculate costs using selected time period
+if (!exists("final_cost_data") | !exists("final_effic_data")) {
+  invisible(source("./RBEROST-Pacific/R/00_CostandEffic_Calc.R"))
+}
+if (!exists("road_data") | !exists("road_effic_data") | !exists("road_area")) {
+  invisible(source("./RBEROST-Pacific/R/00_ProcessRoadBMPs.R"))
+}
+
+# Define all available watersheds - Full list of Puget Sound watersheds
+# Note: You can uncomment the full list below or define a subset for testing
+
+
+# Full list of all Puget Sound watersheds
+all_watersheds_orig <- c(
+  "Agate East",
+  "Agate West",
+  "Artondale",
+  "Bainbridge Island East",
+  "Bainbridge Island West",
+  "Ballinger Lake",
+  "Birch Bay",
+  "Blackjack Cr",
+  "Buenna",
+  "Burley Cr",
+  "Butler Cr",
+  "Campbell Cr",
+  "Campbell Lake",
+  "Chambers Cr",
+  "Chico Cr",
+  "Clallam Bay",
+  "Coulter Cr",
+  "Cranberry Cr",
+  "Curley Cr",
+  "Dabob Bay",
+  "Dana Passage North",
+  "Dana Passage South",
+  "Deer Cr",
+  "Des Moines Cr",
+  "Deschutes R-Capitol Lake",
+  "Discovery Bay",
+  "Dosewallips",
+  "Duckabush",
+  "Dungeness",
+  "Dutcher Cove",
+  "Dyes Inlet",
+  "Ellis-Mission Cr",
+  "Ellisport",
+  "Elwha",
+  "Erie Lake",
+  "Federal Way",
+  "Fenwick Lake",
+  "Filucy Bay",
+  "Frye Cove",
+  "Gallagher Cove",
+  "Gig Harbor",
+  "Glen Cove",
+  "Goldsborough Cr",
+  "Gorst Cr",
+  "Grant East",
+  "Grant West",
+  "Green Cove",
+  "Green R",
+  "Green Valley Cr",
+  "Gull Harbor",
+  "Hale Passage",
+  "Hamma Hamma",
+  "Henderson Inlet",
+  "Herron",
+  "Hylebos Cr",
+  "Jarrel Cove",
+  "Johns Cr",
+  "Judd Cr",
+  "Kennedy-Schneider",
+  "Ketron",
+  "Kitsap NE",
+  "Kitsap-Hood",
+  "Lake Whatcom - Academy Subwatershed",
+  "Lake Whatcom - Agate Subwatershed",
+  "Lake Whatcom - Anderson-Whatcom Subwatershed",
+  "Lake Whatcom - Austin-Beaver Subwatershed",
+  "Lake Whatcom - Blodel Subwatershed",
+  "Lake Whatcom - Blue Canyon Subwatershed",
+  "Lake Whatcom - Brannian Subwatershed",
+  "Lake Whatcom - Cable Subwatershed",
+  "Lake Whatcom - Carpenter Subwatershed",
+  "Lake Whatcom - Donovan Subwatershed",
+  "Lake Whatcom - Eagle Ridge Subwatershed",
+  "Lake Whatcom - Fir Subwatershed",
+  "Lake Whatcom - Geneva Subwatershed",
+  "Lake Whatcom - Hillsdale Subwatershed",
+  "Lake Whatcom - North Shore Subwatershed",
+  "Lake Whatcom - Olsen Subwatershed",
+  "Lake Whatcom - Oriental Subwatershed",
+  "Lake Whatcom - Silver Beach Subwatershed",
+  "Lake Whatcom - Smith-Whatcom Subwatershed",
+  "Lake Whatcom - South Bay Subwatershed",
+  "Lake Whatcom - Strawberry Subwatershed",
+  "Lake Whatcom - Sudden Valley Subwatershed",
+  "Lake Washington",
+  "Liberty Bay",
+  "Loma Lake",
+  "Lopez Island",
+  "Lynch Cove",
+  "Mable Taylor Cr",
+  "Magnolia Bch",
+  "Maury Island",
+  "Mayo Cove",
+  "McAllister Cr",
+  "McCormick Cr",
+  "McLane Cove",
+  "McLane Cr",
+  "Mill Cr",
+  "Miller Bay",
+  "Miller Cr",
+  "Minter Cr",
+  "Moxlie Cr",
+  "Nisqually R",
+  "Nooksack",
+  "North Olympic",
+  "NW Hood",
+  "Olalla Cr",
+  "Orcas Island",
+  "Peale Passage",
+  "Perry Cr",
+  "Port Angeles",
+  "Port Gamble",
+  "Port Townsend",
+  "Purdy Cr",
+  "Puyallup R",
+  "Quilcene",
+  "Rocky Cr",
+  "Rosedale",
+  "Saltwater St Pk",
+  "Samish-Bell south",
+  "San Juan Island",
+  "Sawyer Lake",
+  "Schneider Cr",
+  "Sequim Bay",
+  "Sequalitchew Cr",
+  "Sherwood Cr",
+  "Shingle Mill Cr",
+  "Skagit",
+  "Skokomish",
+  "Skookum Cr",
+  "Snodgrass Cr",
+  "Snohomish",
+  "South Snohomish",
+  "Stillaguamish",
+  "Sun Pt",
+  "Tahlequah",
+  "Tahuya",
+  "Tolmie",
+  "University Place",
+  "Van Gelden",
+  "Vaughn",
+  "Whatcom-Bell north",
+  "Whidbey east",
+  "Whidbey west",
+  "Whitman Cove",
+  "Wilson Pt",
+  "Woodard Cr",
+  "Woodland Cr",
+  "Young Cove"
+)
+all_watersheds <- c(
+  "Stillaguamish")
+
+#all_watersheds <- c(
+#    "Minter Cr",
+#    "Agate East",
+#  "Agate West",
+#  "Artondale",
+#  "Whidbey east",
+#  "Wilson Pt"
+#  "Port Angeles",
+#  "Johns Cr",
+#  "Birch Bay",
+#  "Lake Whatcom - Smith-Whatcom Subwatershed",
+#  "Young Cove"
+#)
+
+# Watersheds to exclude (known to cause errors or not suitable for batch processing)
+exclude_watersheds <- c()
+
+# Ensure that the batch result folder exists
+if (!dir.exists(NEOSresults)) {
+  dir.create(NEOSresults, recursive = TRUE)
+}
+
+setwd(working_dir)
+source("./RBEROST-Pacific/R/03_BatchRBEROSTRun-Pacific_V1.R")
+```
+
+## Run Postprocessor
+
+To run the postprocessor, click the green triangle below. A window will pop up either in RStudio or in your default web browser. If no green arrow appears, and instead there is a red square, click the red square to stop any ongoing processes and a green triangle should appear in its place. When clicked, the green triangle will turn into a red square until the code is finished. Be aware that simply closing the browser window will not stop the Shiny app. You must also click the red square below if you wish to relaunch the app.
+
+```{r runpostprocessor}
+suppressWarnings({
+setwd(working_dir)
+})
+source("./RBEROST-Pacific/R/02_Optimization_RunShiny-Pacific_ICF24_V5.R", local = TRUE)
+```
