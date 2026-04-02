@@ -1,0 +1,6 @@
+RBEROST-Pacific/Preprocessing/Inputs/allHRUs_withcosts.csv filter=lfs diff=lfs merge=lfs -text
+RBEROST-Pacific/Preprocessing/Inputs/data1_puget.csv filter=lfs diff=lfs merge=lfs -text
+RBEROST-Pacific/Preprocessing/Inputs/pac_sparrow_model_input.txt filter=lfs diff=lfs merge=lfs -text
+RBEROST-Pacific/Preprocessing/Inputs/predict_puget_tn.csv filter=lfs diff=lfs merge=lfs -text
+RBEROST-Pacific/Preprocessing/Inputs/predict_puget_tp.csv filter=lfs diff=lfs merge=lfs -text
+RBEROST-Pacific/Preprocessing/Inputs/RiparianEfficiencies_update.csv filter=lfs diff=lfs merge=lfs -text
