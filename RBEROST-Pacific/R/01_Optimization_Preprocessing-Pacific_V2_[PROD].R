@@ -6,6 +6,8 @@
 # Updated DATE: February 2026
 # Naomi Detenbeck and Craig Connolly (EPA)
 # Added septic, removed double-counting of riparian loads
+# Referencing updated cost data for ag bmps and septic
+# Updated WWTP upgrade costs from 2021USD to 2025USD
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### 
 # Based on: RBEROST-Northeast preprocessor, initially created by ICF under contract to EPA
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### 
@@ -27,13 +29,14 @@
 # BMPS specifications: If BMP_Selection field = X, retain BMP for optimization. Otherwise ignore. 
 
 user_specs_BMPs <- fread(
-  paste(InPath, "01_UserSpecs_BMPs_wseptic.csv", sep = ""), data.table = FALSE
-) 
+  paste(InPath, "01_UserSpecs_BMPs_wseptic.csv", sep = ""), data.table = FALSE,
+  colClasses = list(numeric = c("capital_WA", "operations_WA"))
+) #*# Updated costs to 2026USD for ag bmps, 2025USD for other management options
 
 ### II. Read in data ------
 #base target data
 adjusted_targets <- read.csv(paste0(InPath,"01_UserSpecs_loadingtargets.csv")) %>% #*# 
-# adjusted_targets <- read.csv(paste0(InPath,"01_UserSpecs_loadingtargets_allpt20.csv")) %>%
+#adjusted_targets <- read.csv(paste0(InPath,"01_UserSpecs_loadingtargets_Nooksack.csv")) %>%
   select(-watershed_ID)
 
 if (MODE=="All") {
@@ -993,7 +996,7 @@ temp_bmp_costs <- user_specs_BMPs %>%
 ### XIII. Grazing, ag, urban, road & riparian buffer costs ------
 
 ##### a. Convert area-specific costs to costs per acre for ag and grazing BMPs and to costs per linear foot for Riparian BMPs ------
-
+# ND Modified calculations for riparian buffers - NRCS scenario is based on 50 ft buffer
 temp_bmp_costs_ag_rev <- temp_bmp_costs %>%
   filter(BMP_Category != "point" & BMP_Category != "urban" & BMP_Category != "road") %>%
   mutate(
@@ -1018,7 +1021,7 @@ temp_bmp_costs_ag_rev <- temp_bmp_costs %>%
           capital_units == "ft2" ~ . * UserSpec_width_ft,
           capital_units == "km2" ~ . * km2_to_ac / ft2_to_ac * UserSpec_width_ft,
           capital_units == "yd2" ~ . * yd2_to_ac / ft2_to_ac * UserSpec_width_ft,
-          capital_units == "ac" ~ . / ft2_to_ac * UserSpec_width_ft
+          capital_units == "ac" ~ . * UserSpec_width_ft / 50
         ),
         BMP_Category == "graz" ~ case_when(
           capital_units == "ft2" ~ . * ft2_to_ac,
@@ -1042,7 +1045,7 @@ temp_bmp_costs_ag_rev <- temp_bmp_costs %>%
           operations_units == "ft2" ~ . * UserSpec_width_ft,
           operations_units == "km2" ~ . * km2_to_ac / ft2_to_ac * UserSpec_width_ft,
           operations_units == "yd2" ~ . * yd2_to_ac / ft2_to_ac * UserSpec_width_ft,
-          operations_units == "ac" ~ . / ft2_to_ac * UserSpec_width_ft
+          operations_units == "ac" ~ .  * UserSpec_width_ft / 50
         ),
         BMP_Category == "graz" ~ case_when(
           operations_units == "ft2" ~ . * ft2_to_ac,
@@ -1135,16 +1138,16 @@ if(
             .f = ~(all(.x %in% UserSelected_pointBMPs$BMP)))
         )
       )
-    ) %>% # Annualize capital costs based on planning horizon and interest rate
+    ) %>% # Update from 2021USD to 2025USD and annualize capital costs based on planning horizon and interest rate
     mutate(
       Cost = case_when(
         CostType == "Capital" ~ (
-          Cost * (
+          1.1 * Cost * (
             interest_rate * ((1 + interest_rate) ^ horizon) / 
               (((1 + interest_rate) ^ horizon) - 1)
           )
         ),
-        CostType == "OM" ~ Cost
+        CostType == "OM" ~ 1.1 * Cost
       )
     )
   
@@ -1201,7 +1204,7 @@ if(
   
   urban.dat <- fread(
     paste0(InPath, "/UrbanBMPData.csv"), data.table = FALSE
-  )
+  ) #*# Updated costs to $2025
   
   #Transform urban areas from m^2 to acres 
   urban.dat$Area <- set_units(urban.dat$Area, m^2)
@@ -1234,7 +1237,7 @@ if(
   #Format urban costs
   temp_bmp_costs_urban <- urban.dat %>%
     select(
-      comid, Land_Use, HSG, bmp = BMP, capital = capital_2021USD, operations = operations_2021USD
+      comid, Land_Use, HSG, bmp = BMP, capital = capital_2025USD, operations = operations_2025USD
     ) %>% 
     drop_na() %>%
     filter(!is.na(HSG) & !is.na(Land_Use)) %>%  # Remove entries with NA HSG or Land_Use values
@@ -1276,7 +1279,7 @@ if(
   #Formatting road costs
   temp_bmp_costs_road <- road.dat %>%
     select(
-      comid, bmp = BMP, HSG, capital = capital_2021USD, operations = operations_2021USD
+      comid, bmp = BMP, HSG, capital = capital_2025USD, operations = operations_2025USD
     ) %>%
     drop_na() %>%
     filter(comid %in% c(unlist(streamcat_subset_all, use.names = FALSE)))
@@ -3361,14 +3364,14 @@ if(
   ## Format Septic BMP Costs ----
   if(length(Septic_BMPs) > 0){
     
-    septic_bmp_costs_temp <- user_specs_BMPs%>%
+    septic_bmp_costs_temp <- user_specs_BMPs %>%
       filter(BMP_Selection == "X" & BMP_Category == "septic")%>%
       select(BMP_Category, BMP, capital_WA:operations_WA)%>%
       unique()%>%
-      group_by(BMP_Category, BMP)%>%
+      group_by(BMP_Category, BMP) %>%
       summarise(
-        cap_cost = mean(capital_WA:capital_WA, na.rm = TRUE),
-        op_cost = mean(operations_WA:operations_WA, na.rm = TRUE),
+        cap_cost = mean(capital_WA, na.rm = TRUE),
+        op_cost = mean(operations_WA, na.rm = TRUE),
         .groups = "drop"
       )%>%
       merge(., user_specs_BMPs%>%
@@ -7990,6 +7993,7 @@ sum{agti in ag_tilebmp} ag_frac[c, agti] <= max {agti in ag_tilebmp}
     "#WMOST Optimization Screening Tool AMPL command file
 option presolve_warnings 10000;
 option data_warn 0;
+option cplex_options 'absmipgap 1.0';
 solve;
 
 param urban_frac_by_comid_bmp {c in comid_all, u in urban_bmp};
