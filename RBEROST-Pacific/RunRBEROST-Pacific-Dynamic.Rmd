@@ -7,7 +7,7 @@ output: html_document
 ## Configure R
 This code will load the required R packages that RBEROST uses. To run the code, click the green triangle "Run Current Chunk" below. If no green arrow appears, and instead there is a red square, click the red square to stop any ongoing processes and a green triangle should appear in its place. When clicked, the green triangle will turn into a red square until the code is finished.
 
-**Important:** Please open this project by double-clicking `Tier_1_Optimization-SSWR_5_3_2.Rproj` to ensure proper package management via renv.
+**Important:** Please open this project by double-clicking `RBEROSTV2D.Rproj` to ensure proper package management via renv.
 
 The package installation may take several minutes the first time you run this code chunk. Follow any prompts that appear in the R console to complete package installation.
 You may need to use renv::install("package_name") to manually install any packages that fail to install automatically. When renv::status() shows that all packages are installed, proceed to the next code chunk.
