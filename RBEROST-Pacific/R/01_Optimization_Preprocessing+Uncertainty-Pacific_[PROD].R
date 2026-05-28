@@ -4,7 +4,8 @@
 # DATE: 4/1/21
 # UPDATED DATE: June 2024
 # EPA updates by Craig Connolly, Naomi Detenbeck
-# Last updated March 2026
+# Last updated May 2026
+# Costs updated to $2025 for septic, WWTP and $2026 for ag bmps
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### 
 # Based on: RBEROST-Northeast preprocessor with uncertainty.
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### 
@@ -2013,16 +2014,16 @@ if(
             .f = ~(all(.x %in% UserSelected_pointBMPs$BMP)))
         )
       )
-    ) %>% # Annualize capital costs based on planning horizon and interest rate
+    ) %>% #*# Update from 2021USD to 2025USD and annualize capital costs based on planning horizon and interest rate
     mutate(
       Cost = case_when(
         CostType == "Capital" ~ (
-          Cost * (
+          1.1 * Cost * (
             interest_rate * ((1 + interest_rate) ^ horizon) / 
               (((1 + interest_rate) ^ horizon) - 1)
           )
         ),
-        CostType == "OM" ~ Cost
+        CostType == "OM" ~ 1.1 * Cost
       )
     )
   
