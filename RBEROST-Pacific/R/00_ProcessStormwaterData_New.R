@@ -2,6 +2,11 @@
 # PURPOSE: Load in updated precipitation, run off, and land use data for each COMID as well as updated cost and efficiency data ####
 # BY: Kelly-Anne Moffa
 # DATE:  11/2/2023 ####
+# UPDATED: 05/26/26
+# BY: Naomi Detenbeck
+# Used corrected updated regression results to predict $2020 costs for urban bmps
+# NEED TO RENAME Permeable Pavement Onsite Treatment Only AS Permeable_Pavement
+
 ###~###~###~###~###~###~###~###~###~###~###~###~###~###~###~###~
 
 
@@ -40,8 +45,8 @@ sf::sf_use_s2(FALSE)
 
 ### User defined list of BMPs -----
 user_specs_BMPs <- fread(
-  paste(InPath,"01_UserSpecs_BMPs.csv",sep=""), data.table = FALSE
-) 
+  paste(InPath,"01_UserSpecs_BMPs_wseptic.csv",sep=""), data.table = FALSE
+) #*#
 
 #Pull out urban BMPs and make into list to filter future datasets by
 urban_BMP <- user_specs_BMPs %>%
@@ -94,53 +99,78 @@ land_value_acre <- land_value %>% mutate(land_val_acre = land_val_sqft/43560) %>
 
 
 ### 2c. Read in run off and precipitation data -----
+# ND: Substituted old runoff and precipitation data used to estimate costs
+# Costs do not vary by season and year - long term precip/runoff used to size bmps
+# Efficiencies vary by season and year but we used average values not predictions
 
-RO2d_in_tmp <- fread("./Data/PS_1983to2018RO2d_inv3.csv") 
+# RO2d_in_tmp <- fread("./Data/PS_1983to2018RO2d_inv3.csv") 
+# 
+# # Anav_in_temp <- fread("./Data/PSppt_1983to2018anav.csv")
+# Anav_in_NEW_tmp <- fread("./Data/PSPPT_2002to2020yrxssn.csv")
+# 
+# #Identify missing catchment (run off and precip are both missing the same)
+# missing_ro <- catchments %>%
+#   filter(!FEATUREID %in% RO2d_in_tmp$FEATUREID)
+# 
+# missing_prec <- catchments %>%
+#   filter(!FEATUREID %in% Anav_in_NEW_tmp$Name)
+# 
+# ## Using nearest neighbor matching, find precip values to fill in for missing comids
+# 
+# missing_cent <- st_centroid(missing_prec)
+# 
+# catchments_no_miss <- catchments %>%
+#   filter(!FEATUREID %in% missing_prec$FEATUREID)
+# 
+# catchment_cent <- st_centroid(catchments_no_miss)
+# 
+# # find nearest feature, from centroid of polygon
+# neighbor <- st_nearest_feature(missing_cent, catchment_cent)
+# 
+# neighbor_comid <- catchments_no_miss$FEATUREID[neighbor]
+# 
+# missing_to_neighbor <- data.frame(
+#   missing_COMID = missing_prec$FEATUREID,
+#   neighbor_COMID = neighbor_comid
+# )
+# 
+# matched_prec <- as.data.frame(Anav_in_NEW_tmp) %>%
+#   filter(Name %in% neighbor_comid) %>%
+#   merge(., missing_to_neighbor, by.x = "Name", by.y = "neighbor_COMID") %>%
+#   select(-Name) %>%
+#   rename(Name = missing_COMID)
+# 
+# Anav_in_NEW <- bind_rows(Anav_in_NEW_tmp, matched_prec)
+# 
+# matched_ro2d <- RO2d_in_tmp %>%
+#   filter(FEATUREID %in% neighbor_comid) %>%
+#   merge(., missing_to_neighbor, by.x = "FEATUREID", by.y = "neighbor_COMID") %>%
+#   select(-FEATUREID) %>%
+#   rename(FEATUREID = missing_COMID)
+# 
+# RO2d_in <- bind_rows(RO2d_in_tmp, matched_ro2d)
 
-# Anav_in_temp <- fread("./Data/PSppt_1983to2018anav.csv")
-Anav_in_NEW_tmp <- fread("./Data/PSPPT_2002to2020yrxssn.csv")
+### 2c. Read in long-term run off and precipitation data to be used for cost predictions -----
 
-#Identify missing catchment (run off and precip are both missing the same)
-missing_ro <- catchments %>%
-  filter(!FEATUREID %in% RO2d_in_tmp$FEATUREID)
+RO2d_in_temp <- fread("./Data/PS_1983to2018RO2d_in.csv")
+RO2d_in_missing <- fread("./Data/PS_1983to2018RO2d_in_missing.csv")
+RO2d_in <- rbind(RO2d_in_temp, RO2d_in_missing) %>%
+  distinct(FEATUREID, .keep_all=T)
 
-missing_prec <- catchments %>%
-  filter(!FEATUREID %in% Anav_in_NEW_tmp$Name)
+Anav_in_temp <- fread("./Data/PSppt_1983to2018anav.csv")
+Anav_in_missing <- fread("./Data/PSppt_1983to2018anav_missing.csv")
+Anav_in <- rbind(Anav_in_temp, Anav_in_missing) %>%
+  distinct(FEATUREID, .keep_all=T)
 
-## Using nearest neighbor matching, find precip values to fill in for missing comids
+missing_precip <- read.xlsx("./Data/allHRUs_missingprecip.xlsx") %>%
+  dplyr::select(COMID, NearCOMID) %>%
+  mutate(COMID = as.integer(COMID),
+         NearCOMID = as.integer(NearCOMID))
 
-missing_cent <- st_centroid(missing_prec)
+#Identify missing catchment
+missing <- catchments %>%
+  filter(!FEATUREID %in% Anav_in$FEATUREID)
 
-catchments_no_miss <- catchments %>%
-  filter(!FEATUREID %in% missing_prec$FEATUREID)
-
-catchment_cent <- st_centroid(catchments_no_miss)
-
-# find nearest feature, from centroid of polygon
-neighbor <- st_nearest_feature(missing_cent, catchment_cent)
-
-neighbor_comid <- catchments_no_miss$FEATUREID[neighbor]
-
-missing_to_neighbor <- data.frame(
-  missing_COMID = missing_prec$FEATUREID,
-  neighbor_COMID = neighbor_comid
-)
-
-matched_prec <- as.data.frame(Anav_in_NEW_tmp) %>%
-  filter(Name %in% neighbor_comid) %>%
-  merge(., missing_to_neighbor, by.x = "Name", by.y = "neighbor_COMID") %>%
-  select(-Name) %>%
-  rename(Name = missing_COMID)
-
-Anav_in_NEW <- bind_rows(Anav_in_NEW_tmp, matched_prec)
-
-matched_ro2d <- RO2d_in_tmp %>%
-  filter(FEATUREID %in% neighbor_comid) %>%
-  merge(., missing_to_neighbor, by.x = "FEATUREID", by.y = "neighbor_COMID") %>%
-  select(-FEATUREID) %>%
-  rename(FEATUREID = missing_COMID)
-
-RO2d_in <- bind_rows(RO2d_in_tmp, matched_ro2d)
 
 ### 2d. Read in land use data to get land use by COMID and HSG -----
 
@@ -180,15 +210,22 @@ NLCD_bycomid_byHSG <- rbind(NLCD_bycomid_byHSG_temp, NLCD_bycomid_byHSG_missing)
 ### 2e. Load in cost and efficiency data -----
 
 # Read in costs (Cap, OM, min cap/OM, and rain garden)
-cap_costs_temp <- read.xlsx("./Data/Capcost_finalparameters_092823_clean.xlsx", sheet="#LN16126", startRow=3) %>%
+# Costs calculated separately for flow-volume requirements vs water quality volume requirements based on BMP type;
+cap_costs_tempFV <- read.xlsx("./Data/Capcost_finalparametersFV_05202026_clean.xlsx", sheet="#LN00051", startRow=3) %>%
+  dplyr::select(BMP.Type,Land_Use, HSG = Hydgrp, ModelLabel = Label.of.model, Intercept, mean_capcost, min_capcost, max_capcost, cap_rmse = Root.mean.squared.error, 
+                Annav_capcost_coeff = AnnavPrecipin, ro2d_capcost_coeff = ro2d_in, Annav2_capcost_coeff = AnnavPrecipin2,
+                ro2d2_capcost_coeff = ro2d_in2, AIC1:AIC4, bestAIC_capcost = bestAIC, bestmodel_capcost = bestmodel, PrecOrder_capcost = PrecOrder, Ro2dOrder_capcost = Ro2dOrder)
+cap_costs_tempWQ <- read.xlsx("./Data/Capcost_finalparametersWQ_05202026_clean.xlsx", sheet="#LN00009", startRow=3)  %>%
   dplyr::select(BMP.Type, Land_Use, HSG = Hydgrp, ModelLabel = Label.of.model, Intercept, mean_capcost, min_capcost, max_capcost, cap_rmse = Root.mean.squared.error, 
                 Annav_capcost_coeff = AnnavPrecipin, ro2d_capcost_coeff = ro2d_in, Annav2_capcost_coeff = AnnavPrecipin2,
                 ro2d2_capcost_coeff = ro2d_in2, AIC1:AIC4, bestAIC_capcost = bestAIC, bestmodel_capcost = bestmodel, PrecOrder_capcost = PrecOrder, Ro2dOrder_capcost = Ro2dOrder)
-
+cap_costs_temp <- rbind(cap_costs_tempFV, cap_costs_tempWQ)  
+  
 cap_costs_temp$BMP.Type <- gsub(" ", "_", cap_costs_temp$BMP.Type)
 cap_costs_temp$BMP.Type <- gsub("[/]", "_", cap_costs_temp$BMP.Type)
 
 cap_costs <- cap_costs_temp %>%
+  mutate(BMP.Type = ifelse(BMP.Type == "Permeable_Pavement_Onsite_Treatment_Only","Permeable_Pavement",BMP.Type)) %>%
   filter(BMP.Type %in% relevant_BMP)
 
 colnames(cap_costs) <- ifelse(
@@ -206,15 +243,21 @@ bmp_count <- cap_costs %>%
   group_by(BMP.Type) %>%
   tally()
 
-om_costs_temp <- read.xlsx("./Data/OMcost_finalparameters_092823_clean.xlsx", sheet="#LN16147", startRow=3) %>%
+om_costs_tempFV <- read.xlsx("./Data/OMcost_finalparametersFV_05202026_clean.xlsx", sheet="#LN00054", startRow=3) %>%
   dplyr::select(BMP.Type, Land_Use, HSG = Hydgrp, ModelLabel = Label.of.model, Intercept, mean_omcost, min_omcost, max_omcost, om_rmse = Root.mean.squared.error,
                 Annav_omcost_coeff = AnnavPrecipin, ro2d_omcost_coeff = ro2d_in, Annav2_omcost_coeff = AnnavPrecipin2,
                 ro2d2_omcost_coeff = ro2d_in2, bestAIC_omcost = bestAIC, bestmodel_omcost = bestmodel, PrecOrder_omcost = PrecOrder, Ro2dOrder_omcost = Ro2dOrder)
-
+om_costs_tempWQ <- read.xlsx("./Data/OMcost_finalparametersWQ_05202026_clean.xlsx", sheet="#LN00048", startRow=3) %>%
+  dplyr::select(BMP.Type, Land_Use, HSG = Hydgrp, ModelLabel = Label.of.model, Intercept, mean_omcost, min_omcost, max_omcost, om_rmse = Root.mean.squared.error,
+                Annav_omcost_coeff = AnnavPrecipin, ro2d_omcost_coeff = ro2d_in, Annav2_omcost_coeff = AnnavPrecipin2,
+                ro2d2_omcost_coeff = ro2d_in2, bestAIC_omcost = bestAIC, bestmodel_omcost = bestmodel, PrecOrder_omcost = PrecOrder, Ro2dOrder_omcost = Ro2dOrder)
+om_costs_temp <- rbind(om_costs_tempFV,om_costs_tempWQ)  
+  
 om_costs_temp$BMP.Type <- gsub(" ", "_", om_costs_temp$BMP.Type)
 om_costs_temp$BMP.Type <- gsub("[/]", "_", om_costs_temp$BMP.Type)
 
 om_costs <- om_costs_temp %>%
+  mutate(BMP.Type = ifelse(BMP.Type == "Permeable_Pavement_Onsite_Treatment_Only","Permeable_Pavement",BMP.Type)) %>%
   filter(BMP.Type %in% relevant_BMP)
 
 colnames(om_costs) <- ifelse(
@@ -229,14 +272,18 @@ colnames(om_costs) <- ifelse(
 )
 
 
-min_capcost <- read.xlsx("./Data/Mincapcostparam_statswq.xlsx", sheet = "#LN16161", startRow = 3) %>%
-  dplyr::select(BMP.Type, Land_Use, HSG = Hydgrp, ModelLabel = Label.of.model, Intercept, mean_capcost, min_capcost, max_capcost, 
+min_capcost <- read.xlsx("./Data/Mincapcostparam_statswq.xlsx", sheet = "#LN02449", startRow = 3) %>%
+  dplyr::select(BMP.Type, Land_Use, HSG = Hydgrp, ModelLabel = Label.of.model, mean_capcost, min_capcost, max_capcost, 
                 Annav_capcost_coeff = AnnavPrecipin, min_cap_rmse = Root.mean.squared.error, 
                 ro2d_capcost_coeff = ro2d_in, Annav2_capcost_coeff = AnnavPrecipin2, ro2d2_capcost_coeff = ro2d_in2, AIC1:AIC4,
-                bestAIC_capcost = bestAIC, bestmodel_capcost = bestmodel, PrecOrder_capcost = PrecOrder, Ro2dOrder_capcost = Ro2dOrder)
-
+                bestAIC_capcost = bestAIC, bestmodel_capcost = bestmodel, PrecOrder_capcost = PrecOrder, Ro2dOrder_capcost = Ro2dOrder) %>%
+  mutate(Intercept = 0) # fixed zero intercept
 min_capcost$BMP.Type <- gsub(" ", "_", min_capcost$BMP.Type)
 min_capcost$BMP.Type <- gsub("[/]", "_", min_capcost$BMP.Type)
+
+min_capcost <- min_capcost %>%
+  mutate(BMP.Type = ifelse(BMP.Type == "Permeable_Pavement_Onsite_Treatment_Only","Permeable_Pavement",BMP.Type))
+  
 
 colnames(min_capcost) <- ifelse(
   colnames(min_capcost) %in% c("BMP.Type", "Land_Use", "HSG",
@@ -245,15 +292,19 @@ colnames(min_capcost) <- ifelse(
   paste0("min_cap_", colnames(min_capcost))
 )
 
-min_omcost <- read.xlsx("./Data/Minomcostparam_statswq.xlsx", sheet = "#LN16164", startRow = 3) %>%
-  dplyr::select(BMP.Type, Land_Use, HSG = Hydgrp, ModelLabel = Label.of.model, Intercept, mean_omcost, min_omcost, max_omcost,
+min_omcost <- read.xlsx("./Data/Minomcostparam_statswq.xlsx", sheet = "#LN02455", startRow = 3) %>%
+  dplyr::select(BMP.Type, Land_Use, HSG = Hydgrp, ModelLabel = Label.of.model, mean_omcost, min_omcost, max_omcost,
                 min_om_rmse = Root.mean.squared.error, Annav_omcost_coeff = AnnavPrecipin, 
                 ro2d_omcost_coeff = ro2d_in, Annav2_omcost_coeff = AnnavPrecipin2, ro2d2_omcost_coeff = ro2d_in2, 
-                bestAIC_omcost = bestAIC, bestmodel_omcost = bestmodel, PrecOrder_omcost = PrecOrder, Ro2dOrder_omcost = Ro2dOrder)
+                bestAIC_omcost = bestAIC, bestmodel_omcost = bestmodel, PrecOrder_omcost = PrecOrder, Ro2dOrder_omcost = Ro2dOrder) %>%
+  mutate(Intercept = 0) # fixed zero intercept
 
 min_omcost$BMP.Type <- gsub(" ", "_", min_omcost$BMP.Type)
 min_omcost$BMP.Type <- gsub("[/]", "_", min_omcost$BMP.Type)
 
+min_omcost <- min_omcost %>%
+  mutate(BMP.Type = ifelse(BMP.Type == "Permeable_Pavement_Onsite_Treatment_Only","Permeable_Pavement",BMP.Type))
+  
 colnames(min_omcost) <- ifelse(
   colnames(min_omcost) %in% c("BMP.Type", "Land_Use", "HSG",
                                "min_omcost", "min_cap_rmse"), 
@@ -299,15 +350,20 @@ all_HRUs <- merge(all_HRUs_prelim, land_value_acre, by.x = c("county", "Land_Use
 
 all_HRUs_with_precip_temp <- all_HRUs %>%
   merge(., RO2d_in %>% rename(ro2d_in = ro2d_in), by.x="COMID", by.y="FEATUREID", all.x=T) %>%
-  merge(., Anav_in_NEW %>% rename(Ppt_in = pptyrxssn_in), by.x="COMID", by.y="Name", all.x=T) %>%
-  dplyr::select(COMID:HSG, Area, land_val_acre, Year, season, ro2d_in, Ppt_in) 
+#  merge(., Anav_in_NEW %>% rename(Ppt_in = pptyrxssn_in), by.x="COMID", by.y="Name", all.x=T) %>%
+# Cost calculations were based on longterm prec and ro2d - don't use season x year values
+  merge(., Anav_in %>% rename(Ppt_in = AnAvPpt_in), by.x="COMID", by.y="FEATUREID", all.x=T) %>%  
+  dplyr::select(COMID:HSG, Area, land_val_acre, ro2d_in, Ppt_in) 
 
 length(unique(all_HRUs_with_precip_temp$COMID))
-
+# ND: Cost calculations were based on longterm annual average precip or 91st percentile of 2day runoff
+# No longer using season x year values here so just take average values
 all_HRUs_with_precip <- all_HRUs_with_precip_temp %>%
-  group_by(COMID, Land_Use, HSG, Year) %>%
+#  group_by(COMID, Land_Use, HSG, Year) %>% # Costs will not vary by year
+  group_by(COMID, Land_Use, HSG) %>%  
   summarize(
-    AnPpt_in = sum(Ppt_in, na.rm = TRUE),
+#    AnPpt_in = sum(Ppt_in, na.rm = TRUE), #using long-term avg now so don't sum across seasons
+    AnPpt_in = mean(Ppt_in, na.rm = TRUE),    
     ro2d_in = mean(ro2d_in, na.rm = T),
     land_val_acre = mean(land_val_acre, na.rm = T),
     Area = sum(Area)
@@ -315,11 +371,9 @@ all_HRUs_with_precip <- all_HRUs_with_precip_temp %>%
 
 length(unique(all_HRUs_with_precip$COMID))
 
-# QA - how many comids do not have precip data? None.
+# QA - how many comids do not have precip data? 12.
 all_HRUs_precip_QA <- all_HRUs_with_precip %>%
   filter(is.na(ro2d_in) | is.na(AnPpt_in) | is.na(land_val_acre) | is.na(Area))
-
-
 
 
 ###~###~###~###~###~###~###~###~###~###~###~###~###~###~
@@ -343,6 +397,6 @@ final_all_HRUs_withcosts <- final_all_HRUs_withcosts %>%
 
 
 
-write.csv(final_all_HRUs_withcosts, paste0(InPath, "allHRUs_withcosts.csv"), row.names = F)
+write.csv(final_all_HRUs_withcosts, paste0(InPath, "allHRUs_withcosts.csv"), row.names = F) #*#
 
 #*# The last .csv printed will be used in the next R file ("00_CostandEffic_Calc.R") to actually calculate costs #*#
