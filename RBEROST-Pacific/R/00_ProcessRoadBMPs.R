@@ -2,6 +2,10 @@
 # PURPOSE: Assign cost and efficiency data for road BMPs ####
 # BY: Kelly-Anne Moffa
 # DATE:  03/25/2024 ####
+# Updated: 05/27/26
+# Naomi Detenbeck
+# Cost thresholds were changed which changed no. missing cases 
+# Used updated cost data (2025USD)
 ###~###~###~###~###~###~###~###~###~###~###~###~###~###~###~###~
 
 
@@ -26,7 +30,8 @@ invisible(
 
 InPath <- paste0(working_dir, "RBEROST-Pacific/Preprocessing/Inputs/")
 
-user_specs_BMPs <- fread(paste(InPath,"01_UserSpecs_BMPs.csv",sep=""), data.table = FALSE) 
+# user_specs_BMPs <- fread(paste(InPath,"01_UserSpecs_BMPs.csv",sep=""), data.table = FALSE) #*#
+user_specs_BMPs <- fread(paste(InPath,"01_UserSpecs_BMPs_wseptic.csv",sep=""), data.table = FALSE)
 
 road_bmps <- (user_specs_BMPs %>% filter(BMP_Category == "road"))$BMP
 
@@ -34,7 +39,7 @@ road_bmps <- (user_specs_BMPs %>% filter(BMP_Category == "road"))$BMP
 # 2. Load relevant data -----
 ###~###~###~###~###~###~###~###~###~###~###~###~###~###~
 
-urban_data <- fread(paste0(InPath, "UrbanBMPData.csv"))
+urban_data <- fread(paste0(InPath, "UrbanBMPData.csv")) # updated to $2025
 urban_data_effic <- fread(paste0(InPath, "UrbanBMP_Effic_Data.csv"))
 
 # Extract road-specific data (Land_Use == "UIDU")
