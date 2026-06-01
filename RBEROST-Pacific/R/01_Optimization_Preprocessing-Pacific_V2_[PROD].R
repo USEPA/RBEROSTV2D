@@ -38,7 +38,7 @@ user_specs_BMPs <- fread(
 ### II. Read in data ------
 #base target data
  adjusted_targets <- read.csv(paste0(InPath,"01_UserSpecs_loadingtargets.csv")) %>% #*# 
-#adjusted_targets <- read.csv(paste0(InPath,"01_UserSpecs_loadingtargets_allpt20.csv")) %>%
+# adjusted_targets <- read.csv(paste0(InPath,"01_UserSpecs_loadingtargets_allpt20.csv")) %>%
   select(-watershed_ID)
 
 if (MODE=="All") {
@@ -8004,7 +8004,7 @@ sum{agti in ag_tilebmp} ag_frac[c, agti] <= max {agti in ag_tilebmp}
         }
       }
     )
-
+  }
   
 #### end edits ####
   ### I. Develop command file ------ ND Moved to after section III to add missing def
@@ -8074,6 +8074,6 @@ sep = "\n"
       append = TRUE
     )
   }
-}  
+  
   #### end edits ####
 
