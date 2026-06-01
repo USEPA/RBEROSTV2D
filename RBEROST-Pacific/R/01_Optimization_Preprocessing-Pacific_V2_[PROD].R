@@ -8,6 +8,8 @@
 # Added septic, removed double-counting of riparian loads
 # Referencing updated cost data for ag bmps and septic
 # Updated WWTP upgrade costs from 2021USD to 2025USD
+# 5/31/26 Added filter to only consider septic conversions w conversion efficiency > 0 (those close to WWTP)
+# Fixed septic variable names
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### 
 # Based on: RBEROST-Northeast preprocessor, initially created by ICF under contract to EPA
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### 
@@ -35,8 +37,8 @@ user_specs_BMPs <- fread(
 
 ### II. Read in data ------
 #base target data
-adjusted_targets <- read.csv(paste0(InPath,"01_UserSpecs_loadingtargets.csv")) %>% #*# 
-#adjusted_targets <- read.csv(paste0(InPath,"01_UserSpecs_loadingtargets_Nooksack.csv")) %>%
+ adjusted_targets <- read.csv(paste0(InPath,"01_UserSpecs_loadingtargets.csv")) %>% #*# 
+#adjusted_targets <- read.csv(paste0(InPath,"01_UserSpecs_loadingtargets_allpt20.csv")) %>%
   select(-watershed_ID)
 
 if (MODE=="All") {
@@ -429,7 +431,8 @@ length(unique(class0ups$comid))
 septic.upgrade_raw <- fread(paste0(InPath, "01_RevSepticUpgrde_ParcelEff.csv")) %>%
   mutate(
     comid = as.character(comid)
-  )
+  ) %>%
+  mutate(SepticUpgradeClass = SeptUpgrCl)
 length(unique(septic.upgrade_raw$comid))
 
 ### Merge in the number of class 0 parcels per COMID
@@ -445,13 +448,13 @@ septic.upgrade <- septic.upgrade_raw%>%
 septic.upgrade_totals <- septic.upgrade%>%
   group_by(comid)%>%
   summarise(
-    total_parcels = sum(parcels)
+    total_parcels = sum(nparcels) # ND Fixed variable name
   )%>%
   ungroup()
 
 ### Remove class 0
 septic.upgrade <- septic.upgrade %>%
-  filter(SepticUpgradeClass != 0)
+  filter(SeptUpgrCl != 0) # ND fixed variable name
 
 ### Check to make sure there are no NAs in the data
 septic_qa <- septic.upgrade_totals%>%
@@ -468,6 +471,8 @@ septic.conversion_totals <- septic.conversion_raw%>%
   )
 septic.conversion <- septic.conversion_raw%>%
   filter(SewerConversionClass != 0)%>%
+  # ND: only consider parcels close enough to WWTP to have conversion efficiency ne zero;
+  filter(Convert_Efficiency != 0)%>%  
   group_by(comid)%>%
   summarise(
     parcels = sum(SewerConversionParcels),
@@ -3394,16 +3399,18 @@ if(
       select(comid, everything())
     
     sep_upgrade_bmp_costs_temp <- septic.upgrade%>%
-      rename(BMP = SepticUpgradeClass)%>%
+      rename(BMP = SeptUpgrCl)%>% #ND fixed variable name
       mutate(
         BMP = paste0("class_", BMP, "_upgrade")
       )%>%
-      select(-parcels, -efficiency_per_parcel)%>%
+      select(-parcels, -nparcels, -efficiency_per_parcel)%>% #ND added nparcels to list
       merge(., septic_bmp_costs_temp%>%select(BMP, cap_cost, op_cost), by = c("BMP")
       )%>%
       select(comid, everything())
     
-    septic_costs_temp <- rbind(sep_convert_bmp_costs_temp, sep_upgrade_bmp_costs_temp)
+    septic_costs_temp <- rbind(sep_convert_bmp_costs_temp, 
+                               select(sep_upgrade_bmp_costs_temp,-SepticUpgradeClass,-Convert_Efficiency0))
+    # ND removed extraneous columns
     
     septic_cap_costs <- septic_costs_temp %>%
       select(comid, BMP, cap_cost) %>%
@@ -3921,21 +3928,21 @@ if(
   } 
 
 #### CTC edited: 2/5/2026 - transferred from dynamic LIS RBEROST ####
-  
+# ND edited 5/31/2026 substituted SeptUpgrCl for SepticUpgradeClass  
   ## Format septic BMP efficiency data -----
   if(length(Septic_BMPs) > 0) {
     
-    septic_effic_dat_temp <- septic.upgrade %>% select(comid, SepticUpgradeClass, efficiency_per_parcel)%>%
+    septic_effic_dat_temp <- septic.upgrade %>% select(comid, SeptUpgrCl, efficiency_per_parcel)%>% #ND fixed var name
       mutate(
-        SepticUpgradeClass = case_when(
-          SepticUpgradeClass == 1 ~ "class_1_upgrade",
-          SepticUpgradeClass == 2 ~ "class_2_upgrade",
-          SepticUpgradeClass == 3 ~ "class_3_upgrade",
-          SepticUpgradeClass == 4 ~ "class_4_upgrade",
-          SepticUpgradeClass == 5 ~ "class_5_upgrade",
-          SepticUpgradeClass == 6 ~ "class_6_upgrade",
-          SepticUpgradeClass == 7 ~ "class_7_upgrade",
-          SepticUpgradeClass == 8 ~ "class_8_upgrade"
+        SeptUpgrCl = case_when(
+          SeptUpgrCl == 1 ~ "class_1_upgrade",
+          SeptUpgrCl == 2 ~ "class_2_upgrade",
+          SeptUpgrCl == 3 ~ "class_3_upgrade",
+          SeptUpgrCl == 4 ~ "class_4_upgrade",
+          SeptUpgrCl == 5 ~ "class_5_upgrade",
+          SeptUpgrCl == 6 ~ "class_6_upgrade",
+          SeptUpgrCl == 7 ~ "class_7_upgrade",
+          SeptUpgrCl == 8 ~ "class_8_upgrade"
         )
       )
     
@@ -3944,13 +3951,13 @@ if(
       # Create efficiency for sewer conversions
       sewer_effic_dat_temp <- septic.conversion%>%select(comid, efficiency_per_parcel)%>%
         mutate(
-          SepticUpgradeClass = "Sewer_convert"
+          SeptUpgrCl = "Sewer_convert"
         )
       
       # Combine septic and sewer efficiency data
       septic_effic_dat_tn <-  rbind(septic_effic_dat_temp, sewer_effic_dat_temp)%>%
         pivot_wider(
-          names_from = SepticUpgradeClass,
+          names_from = SeptUpgrCl,
           values_from = efficiency_per_parcel
         ) %>%
         right_join(
@@ -3963,7 +3970,7 @@ if(
       # Combine septic and sewer efficiency data
       septic_effic_dat_tn <-  septic_effic_dat_temp%>%
         pivot_wider(
-          names_from = SepticUpgradeClass,
+          names_from = SeptUpgrCl,
           values_from = efficiency_per_parcel
         ) %>%
         right_join(
@@ -7402,22 +7409,35 @@ var roadBMP_bin {comid_all, road_bmp} binary;
 var point_dec {c in comid_all, p in point_bmp}
   binary,
   :=0;
-var urban_frac {c in comid_all, d in urban_land_uses, n in urban_soil_groups, u in urban_bmp} 
-   >= urban_frac_min[u] * urban_bmp_implementationpotential[c,d,n,u],  
-   <= urban_frac_max[u] * urban_bmp_implementationpotential[c,d,n,u],
-   :=0;
+# correct unbounded fraction variables - AI solution created NEOS error  
+ var urban_frac {c in comid_all, d in urban_land_uses, n in urban_soil_groups, u in urban_bmp}
+#  = 0,
+#  <= urban_frac_max[u] * urban_bmp_implementationpotential[c,d,n,u],
+#  := 0; 
+    >= urban_frac_min[u] * urban_bmp_implementationpotential[c,d,n,u],  
+    <= urban_frac_max[u] * urban_bmp_implementationpotential[c,d,n,u],
+    :=0;
 var ag_frac {c in comid_all, a in ag_bmp}
-   >= ag_frac_min[a] * ag_bmp_implementationpotential[c, a],  
-   <= ag_frac_max[a] * ag_bmp_implementationpotential[c, a],
-   :=0;
+#   >= 0,
+#   <= ag_frac_max[a] * ag_bmp_implementationpotential[c,a],
+#   := 0
+    >= ag_frac_min[a] * ag_bmp_implementationpotential[c, a],  
+    <= ag_frac_max[a] * ag_bmp_implementationpotential[c, a],
+    :=0;
 var road_frac {c in comid_all, h in road_soil_groups, r in road_bmp}
-  >= road_frac_min[r],
-  <= road_frac_max[r],
-  :=0;
+#  >= 0, 
+#  <= road_frac_max[r],
+#  := 0;  
+   >= road_frac_min[r],
+   <= road_frac_max[r],
+   :=0;
 var graz_frac {c in comid_all, g in graz_bmp}
-  >= graz_frac_min[g],
-  <= graz_frac_max[g],
-  :=0;
+#  >= 0,
+#  <= graz_frac_max[g],
+#  := 0;
+   >= graz_frac_min[g],
+   <= graz_frac_max[g],
+   :=0;
 var ripbuf_length {c in comid_all, b in ripbuf_bmp} 
    >= 0, 
    <= unbuffered_banklength[c, b] * ripbuf_frac_max[b],
@@ -7992,8 +8012,13 @@ sum{agti in ag_tilebmp} ag_frac[c, agti] <= max {agti in ag_tilebmp}
   cat(
     "#WMOST Optimization Screening Tool AMPL command file
 option presolve_warnings 10000;
+# Enable AMPL automatic scaling
+option scale_option 1;  # Enable automatic scaling for unit scaling sensitivity
+option scale_tolerance 1e-10;  # Relaxed from baseline 1e-12
 option data_warn 0;
 option cplex_options 'absmipgap 1.0';
+# explore infeasibility
+option cplex_options 'conflict';
 solve;
 
 param urban_frac_by_comid_bmp {c in comid_all, u in urban_bmp};
