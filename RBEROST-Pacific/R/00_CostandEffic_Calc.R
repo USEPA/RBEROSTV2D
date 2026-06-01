@@ -629,7 +629,7 @@ qa_effic <- final_effic_data %>%
 # summary(cost_comp_old$capital_2020USD)
 # summary(cost_comp_old$operations_2020USD)
 
-summary(RO2d_in$ro2d_in) # median ro2d_in = 1.42;
+summary(allHRUs$ro2d_in) # median ro2d_in = 1.42;
  
  cost_comp_oldUIDU <- all_HRU_bounded %>% 
    filter(Land_Use == 'UIDU' )  %>%
