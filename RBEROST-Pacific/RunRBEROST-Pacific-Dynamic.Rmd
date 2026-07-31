@@ -7,7 +7,7 @@ output: html_document
 ## Configure R
 This code will load the required R packages that RBEROST uses. To run the code, click the green triangle "Run Current Chunk" below. If no green arrow appears, and instead there is a red square, click the red square to stop any ongoing processes and a green triangle should appear in its place. When clicked, the green triangle will turn into a red square until the code is finished.
 
-**Important:** Please open this project by double-clicking `RBEROSTV2D.Rproj` to ensure proper package management via renv.
+**Important:** Please open this project by double-clicking `Tier_1_Optimization-SSWR_5_3_2.Rproj` to ensure proper package management via renv.
 
 The package installation may take several minutes the first time you run this code chunk. Follow any prompts that appear in the R console to complete package installation.
 You may need to use renv::install("package_name") to manually install any packages that fail to install automatically. When renv::status() shows that all packages are installed, proceed to the next code chunk.
@@ -85,59 +85,133 @@ OutPath<-paste0(working_dir, "RBEROST-Pacific/Preprocessing/Outputs/")
 horizon <- 15
 
 #This variable represents the selection of watersheds to run. Default is "Select", which runs only run watersheds named under 'watershed_choices'. Functionality does not support running "All" watershed choices yet due to file size constraints.
+
+# *Watersheds currently not optimizing due to issues with storage calculations for coastal catchments without NHDPlus flowlines, hopefully to be added in future version
+
 MODE <- "Select"
 
-#   [1] "Agate East"                                   "Agate West"                                   "Artondale"                                   
-#   [4] "Bainbridge Island East"                       "Bainbridge Island West"                      "Ballinger Lake"                              
-#   [7] "Birch Bay"                                    "Blackjack Cr"                                "Buenna"                                      
-#  [10] "Burley Cr"                                    "Butler Cr"                                    "Campbell Cr"                                 
-#  [13] "Campbell Lake"                                "Chambers Cr"                                  "Chico Cr"                                    
-#  [16] "Clallam Bay"                                  "Coulter Cr"                                   "Cranberry Cr"                                
-#  [19] "Curley Cr"                                    "Dabob Bay"                                    "Dana Passage North"                          
-#  [22] "Dana Passage South"                           "Deer Cr"                                      "Des Moines Cr"                              
-#  [25] "Deschutes R-Capitol Lake"                     "Discovery Bay"                                "Dosewallips"                                 
-#  [28] "Duckabush"                                    "Dungeness"                                    "Dutcher Cove"                               
-#  [31] "Dyes Inlet"                                   "Ellis-Mission Cr"                             "Ellisport"                                   
-#  [34] "Elwha"                                        "Erie Lake"                                    "Federal Way"                                 
-#  [37] "Fenwick Lake"                                 "Filucy Bay"                                   "Frye Cove"                                  
-#  [40] "Gallagher Cove"                               "Gig Harbor"                                   "Glen Cove"                                   
-#  [43] "Goldsborough Cr"                              "Gorst Cr"                                     "Grant East"                                  
-#  [46] "Grant West"                                   "Green Cove"                                   "Green R"                                     
-#  [49] "Green Valley Cr"                              "Gull Harbor"                                  "Hale Passage"                                
-#  [52] "Hamma Hamma"                                  "Henderson Inlet"                              "Herron"                                      
-#  [55] "Hylebos Cr"                                   "Jarrel Cove"                                  "Johns Cr"                                    
-#  [58] "Judd Cr"                                      "Kennedy-Schneider"                            "Ketron"                                      
-#  [61] "Kitsap NE"                                    "Kitsap-Hood"                                  "Lake Whatcom - Academy Subwatershed"         
-#  [64] "Lake Whatcom - Agate Subwatershed"           "Lake Whatcom - Anderson-Whatcom Subwatershed" "Lake Whatcom - Austin-Beaver Subwatershed"   
-#  [67] "Lake Whatcom - Blodel Subwatershed"          "Lake Whatcom - Blue Canyon Subwatershed"      "Lake Whatcom - Brannian Subwatershed"        
-#  [70] "Lake Whatcom - Cable Subwatershed"           "Lake Whatcom - Carpenter Subwatershed"        "Lake Whatcom - Donovan Subwatershed"         
-#  [73] "Lake Whatcom - Eagle Ridge Subwatershed"     "Lake Whatcom - Fir Subwatershed"              "Lake Whatcom - Geneva Subwatershed"          
-#  [76] "Lake Whatcom - Hillsdale Subwatershed"       "Lake Whatcom - North Shore Subwatershed"      "Lake Whatcom - Olsen Subwatershed"           
-#  [79] "Lake Whatcom - Oriental Subwatershed"        "Lake Whatcom - Silver Beach Subwatershed"     "Lake Whatcom - Smith-Whatcom Subwatershed"   
-#  [82] "Lake Whatcom - South Bay Subwatershed"       "Lake Whatcom - Strawberry Subwatershed"       "Lake Whatcom - Sudden Valley Subwatershed"   
-#  [85] "Lake Washington"                              "Liberty Bay"                                  "Loma Lake"                                   
-#  [88] "Lopez Island"                                 "Lynch Cove"                                   "Mable Taylor Cr"                             
-#  [91] "Magnolia Bch"                                 "Maury Island"                                 "Mayo Cove"                                   
-#  [94] "McAllister Cr"                                "McCormick Cr"                                 "McLane Cove"                                 
-#  [97] "McLane Cr"                                    "Mill Cr"                                      "Miller Bay"                                  
-# [100] "Miller Cr"                                    "Minter Cr"                                    "Moxlie Cr"                                   
-# [103] "Nisqually R"                                  "Nooksack"                                     "North Olympic"                               
-# [106] "NW Hood"                                      "Olalla Cr"                                    "Orcas Island"                                
-# [109] "Peale Passage"                                "Perry Cr"                                     "Port Angeles"                                
-# [112] "Port Gamble"                                  "Port Townsend"                                "Purdy Cr"                                    
-# [115] "Puyallup R"                                   "Quilcene"                                     "Rocky Cr"                                    
-# [118] "Rosedale"                                     "Saltwater St Pk"                              "Samish-Bell south"                           
-# [121] "San Juan Island"                              "Sawyer Lake"                                  "Schneider Cr"                                
-# [124] "Sequim Bay"                                   "Sequalitchew Cr"                              "Sherwood Cr"                                 
-# [127] "Shingle Mill Cr"                              "Skagit"                                       "Skokomish"                                   
-# [130] "Skookum Cr"                                   "Snodgrass Cr"                                 "Snohomish"                                   
-# [133] "South Snohomish"                              "Stillaguamish"                                "Sun Pt"                                      
-# [136] "Tahlequah"                                    "Tahuya"                                       "Tolmie"                                      
-# [139] "University Place"                             "Van Gelden"                                   "Vaughn"                                      
-# [142] "Whatcom-Bell north"                           "Whidbey east"                                 "Whidbey west"                                
-# [145] "Whitman Cove"                                 "Wilson Pt"                                    "Woodard Cr"                                  
-# [148] "Woodland Cr"                                  "Young Cove"
+# "Agate East"
+# "Agate West"
+# "Artondale"                                   
+# "Bainbridge Island East"*
+# "Bainbridge Island West"
+# "Birch Bay"*
+# "Blackjack Cr"
+# "Buenna"*                                      
+# "Burley Cr"
+# "Butler Cr"
+# "Campbell Cr"                                 
+# "Chambers Cr"*
+# "Chico Cr"*                                    
+# "Clallam Bay"
+# "Coulter Cr"
+# "Cranberry Cr"                                
+# "Curley Cr"
+# "Dabob Bay"
+# "Dana Passage North"                          
+# "Dana Passage South"
+# "Deer Cr"
+# "Des Moines Cr"                              
+# "Discovery Bay"*
+# "Dosewallips"
+# "Duckabush"
+# "Dungeness" 
+# "Dutcher Cove"                               
+# "Dyes Inlet"*
+# "Ellis-Mission Cr"
+# "Ellisport"                                   
+# "Elwha"
+# "Federal Way"*                                 
+# "Filucy Bay"* 
+# "Frye Cove"                                  
+# "Gallagher Cove"*
+# "Gig Harbor"    
+# "Glen Cove"                                   
+# "Goldsborough Cr"* 
+# "Gorst Cr" 
+# "Grant East"                                  
+# "Grant West"
+# "Green Cove"
+# "Green R"                                     
+# "Green Valley Cr" 
+# "Gull Harbor"
+# "Hale Passage"                                
+# "Hamma Hamma"
+# "Henderson Inlet" 
+# "Herron"                                      
+# "Hylebos Cr" 
+# "Jarrel Cove"* 
+# "Johns Cr"                                    
+# "Judd Cr"
+# "Kennedy-Schneider"
+# "Ketron"                                      
+# "Kitsap NE"*
+# "Kitsap-Hood"*
+# "Liberty Bay"*
+# "Lopez Island"
+# "Lynch Cove"
+# "Mable Taylor Cr"                             
+# "Magnolia Bch"
+# "Maury Island"
+# "Mayo Cove"                                   
+# "McAllister Cr"
+# "McCormick Cr"
+# "McLane Cove"                                 
+# "McLane Cr"
+# "Mill Cr"
+# "Miller Bay"*                                  
+# "Miller Cr"* 
+# "Minter Cr" 
+# "Moxlie Cr"                                   
+# "Nisqually R"
+# "Nooksack"*
+# "North Olympic"                               
+# "NW Hood"*
+# "Olalla Cr"
+# "Orcas Island"                                
+# "Peale Passage"
+# "Perry Cr"
+# "Port Angeles"*                                
+# "Port Gamble"*
+# "Port Townsend"* 
+# "Purdy Cr"                                    
+# "Puyallup R"
+# "Quilcene"
+# "Rocky Cr"                                    
+# "Rosedale"
+# "Saltwater St Pk"
+# "Samish-Bell south"*                           
+# "San Juan Island"
+# "Schneider Cr"                                
+# "Sequim Bay" 
+# "Sequalitchew Cr"*
+# "Sherwood Cr"                                 
+# "Shingle Mill Cr"
+# "Skagit"
+# "Skokomish"                                   
+# "Skookum Cr"
+# "Snodgrass Cr"    
+# "Snohomish"                                   
+# "South Snohomish"*
+# "Stillaguamish"*
+# "Sun Pt"                                      
+# "Tahlequah"
+# "Tahuya"
+# "Tolmie"                                      
+# "University Place"
+# "Van Gelden"
+# "Vaughn"                                      
+# "Whatcom-Bell north"*
+# "Whidbey east"*
+# "Whidbey west"*                                
+# "Whitman Cove"
+# "Wilson Pt"
+# "Woodard Cr"                                  
+# "Woodland Cr"
+# "Young Cove"
+
 # Segments of large watersheds to be run separately to avoid time-outs
+
 # "UpperNisquallyR"
 # "MiddleForkSnoqualmieR"
 # "NForkSnoqualmieR"
@@ -150,10 +224,46 @@ MODE <- "Select"
 # "LowerNisquallyR"
 # "LowerStillaguamishR"
 # "UpperStillaguamishR"
+# "RossReservoir"
+# "UpperSkagitToRossReservoir"
+# "NForkSkykomishR"
+# "SForkSkykomishR"
+# "SkykomishToForks"
 
+# Lake watersheds - currently set to be optimized for P only
 
+# "Ballinger Lake"
+#  "Campbell Lake"                                
+#  "Deschutes R-Capitol Lake" 
+#  "Erie Lake"                   
+#  "Fenwick Lake"
+#  "Lake Whatcom - Academy Subwatershed"         
+#  "Lake Whatcom - Agate Subwatershed"
+#  "Lake Whatcom - Anderson-Whatcom Subwatershed"
+#  "Lake Whatcom - Austin-Beaver Subwatershed"
+#  "Lake Whatcom - Blodel Subwatershed"
+#  "Lake Whatcom - Blue Canyon Subwatershed"
+#  "Lake Whatcom - Brannian Subwatershed"        
+#  "Lake Whatcom - Cable Subwatershed"
+#  "Lake Whatcom - Carpenter Subwatershed"
+#  "Lake Whatcom - Donovan Subwatershed"         
+#  "Lake Whatcom - Eagle Ridge Subwatershed"     
+#  "Lake Whatcom - Fir Subwatershed"              
+#  "Lake Whatcom - Geneva Subwatershed"          
+#  "Lake Whatcom - Hillsdale Subwatershed"       
+#  "Lake Whatcom - North Shore Subwatershed"      
+#  "Lake Whatcom - Olsen Subwatershed"           
+#  "Lake Whatcom - Oriental Subwatershed"        
+#  "Lake Whatcom - Silver Beach Subwatershed"     
+#  "Lake Whatcom - Smith-Whatcom Subwatershed"   
+#  "Lake Whatcom - South Bay Subwatershed"
+#  "Lake Whatcom - Strawberry Subwatershed"       
+#  "Lake Whatcom - Sudden Valley Subwatershed"   
+#  "Lake Washington"
+#  "Loma Lake"                                 
+#  "Sawyer Lake"                                                                  
 # This variable determines what watersheds/targets will be included in the model.
-watershed_choices <- c("LowerStillaguamishR")
+watershed_choices <- c("Agate East")
 
 # Select years to include in the model 2008 (4) avg year 2011 (7) wet 2019 dry (15)
 model_years <- c("7") #, "2", ..., "16"
@@ -195,10 +305,10 @@ invisible(source(paste0(working_dir, "RBEROST-Pacific/R/Optimization_HelperFunct
 # source urban and road cost estimate code to calculate costs using selected time period
 if (!exists("final_cost_data") | !exists("final_effic_data")) {
   invisible(source(paste0(working_dir, "RBEROST-Pacific/R/00_CostandEffic_Calc.R")))
-}
+} #*# updated for 2025USD and 99%ile cost threshold
 if (!exists("road_data") | !exists("road_effic_data") | !exists("road_area")) {
-  invisible(source(paste0(working_dir, "RBEROST-Pacific/R/00_ProcessRoadBMPs.R")))
-}
+  invisible(source(paste0(working_dir, "RBEROST-Pacific/R/00_ProcessRoadBMPsND.R")))
+} #*# updated for 2025USD
 
 source(
   paste0(working_dir, "RBEROST-Pacific/R/01_Optimization_Preprocessing_gateway-Pacific.R"),
@@ -218,7 +328,7 @@ Note: The code uses the default file names from the pre-processor. If you have c
 
 # Variables for User to Update ------------------------------------------------
 
-# Enter valid email address
+# Enter valid email address (normally not used but required by NEOS)
 email <- "detenbeck.naomi@epa.gov"
 
 # Enter a filepath where the NEOS result file will be saved.
@@ -229,7 +339,7 @@ NEOSresults <- paste0(working_dir, "RBEROST-Pacific/Preprocessing/Outputs/")
 paramname <- paste0(paste(watershed_choices, collapse = "_"), "_", Sys.Date())
 
 # Comments for NEOS run
-comments <- "LowerStillaguamishR 2011 wet year, 20 pt N redn wout uncertainty"
+comments <- "Agage East 2011 w/out uncertainty"
 
 # Run NEOS optimization script-----------------------------------------------
 suppressWarnings({
