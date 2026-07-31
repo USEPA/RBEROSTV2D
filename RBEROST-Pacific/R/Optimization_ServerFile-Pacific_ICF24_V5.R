@@ -1210,29 +1210,29 @@ server <- function(input, output, session) {
               #"The User Specified Loading Target file provided does not seem to match the result file you have selected. Please check inputs."
             #)
           #},
-          if(solved()[scen.vis()] == 1) {
-            need(
-              !(
-                tryCatch(
-                  any(is.na(urban_results_HUCmerge())),
-                  error = function(x) {FALSE}
-                ) |
-                  tryCatch(
-                    any(is.na(ag_results_HUCmerge())),
-                    error = function(x) {FALSE}
-                  ) |
-                  tryCatch(
-                    any(is.na(ripbuf_results_HUCmerge())),
-                    error = function(x) {FALSE}
-                  ) |
-                  tryCatch(
-                    any(is.na(graz_results_HUCmerge())),
-                    error = function(x) {FALSE}
-                  )
-              ),
-              "Catchment information (from the State Cropland Streamcat files) is missing for some catchments. Please ensure all files are uploaded that were used in the Preprocessing step."
-            )
-          },
+          # if(solved()[scen.vis()] == 1) {
+          #   need(
+          #     !(
+          #       tryCatch(
+          #         any(is.na(urban_results_HUCmerge())),
+          #         error = function(x) {FALSE}
+          #       ) |
+          #         tryCatch(
+          #           any(is.na(ag_results_HUCmerge())),
+          #           error = function(x) {FALSE}
+          #         ) |
+          #         tryCatch(
+          #           any(is.na(ripbuf_results_HUCmerge())),
+          #           error = function(x) {FALSE}
+          #         ) |
+          #         tryCatch(
+          #           any(is.na(graz_results_HUCmerge())),
+          #           error = function(x) {FALSE}
+          #         )
+          #     ),
+          #     "Catchment information (from the State Cropland Streamcat files) is missing for some catchments. Please ensure all files are uploaded that were used in the Preprocessing step."
+          #   )
+          # },
           need(
             length(
               which(
