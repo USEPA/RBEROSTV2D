@@ -35,7 +35,7 @@ sf::sf_use_s2(FALSE)
 
 ### User defined list of BMPs -----
 user_specs_BMPs <- fread(
-  paste(InPath,"01_UserSpecs_BMPs_wseptic.csv",sep=""), data.table = FALSE 
+  paste(InPath,"01_UserSpecs_BMPs_wseptic_2026.csv",sep=""), data.table = FALSE 
 ) #*# Updated to $2026 for ag bmps, urban, wastewater and septic costs updated below to $2025
 
 #Pull out urban BMPs and make into list to filter future datasets by
@@ -52,7 +52,7 @@ relevant_BMP <- urban_BMP %>%
 
 
 ### Read in HRU files with cost coefficients -----
-all_HRUs_withcosts <- read_csv(paste0(InPath, "allHRUs_withcosts.csv")) ##now contains min costs, ag in $2026
+all_HRUs_withcosts <- read_csv(paste0(InPath, "allHRUs_withcosts_2026.csv")) ##now contains min costs, ag in $2026
 
 bmp_count <- all_HRUs_withcosts %>%
   group_by(BMP.Type) %>%
@@ -648,7 +648,7 @@ summary(allHRUs$ro2d_in) # median ro2d_in = 1.42;
 # final_data <- filter_qa %>% select(BMP.Type:HSG, Area, effic_N, effic_P, std_efficN, std_efficP, n_efficN, n_efficP,
 #                                    capital_2020USD, cap_rmse, operations_2020USD, om_rmse) %>% rename(comid = COMID, BMP = BMP.Type)
 
-write.csv(final_cost_data, paste0(InPath,"UrbanBMPData.csv"), row.names = F)
+write.csv(final_cost_data, paste0(InPath,"UrbanBMPData_2025USD.csv"), row.names = F)
 write.csv(final_effic_data, paste0(InPath,"UrbanBMP_Effic_Data.csv"), row.names = F)
 
 ## Summary stats
