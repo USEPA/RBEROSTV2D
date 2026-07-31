@@ -27,7 +27,7 @@ renv::restore()
 
 ## Load all required packages
 This code chunk will load all required R packages. To run the code, click the green triangle.
-If there are any errors indicating that a package is not installed, please refer to the previous code chunk to install missing packages.
+I+f there are any errors indicating that a package is not installed, please refer to the previous code chunk to install missing packages.
 
 ```{r loadpackages}
 # Load required packages
@@ -61,8 +61,8 @@ To run the batch preprocessor, configure the settings below and click the green 
 ### Set file paths and required file names ###############################################################################################
 
 # This variable represents the working directory where RBEROST is located. 
-# You will need to write out the full path ending with the "RBEROSTV2D/" folder.
-working_dir <- "C:/RBEROST/RBEROSTV2D/"
+# You will need to write out the full path ending with the "Tier_1_Optimization-SSWR_5_3_2/" folder.
+working_dir <- "C:/Users/ndetenbe/OneDrive - Environmental Protection Agency (EPA)/Tier_1_Optimization-SSWR.5.3.2/"
 
 # This variable represents the location of input data files used to develop AMPL model files.  
 # If you have not changed the folder structure, you should not need to change this variable.
@@ -75,11 +75,11 @@ OutPath<-paste0(working_dir, "RBEROST-Pacific/Preprocessing/Outputs/")
 ### User Interface ###############################################################################################
 MODE <- "Select"
 # Mode Options
-# "All" will run all watersheds in Puget Sound
+# "All" will run all watersheds in Puget Sound, not currently used due to file size constraints
 # "Select" will only run select watersheds singled out in the all_watersheds vector
 
-# Select years to include in the model
-model_years <- c("1") #, "2", ..., "16"
+# Select years to include in the model, e.g., 2008 (4) avg year 2011 (7) wet 2019 dry (15)
+model_years <- c("5") #, "2", ..., "16"
 # Note: years are available from 1 to 16; corresponding to years 2005-2020
 
 # This variable represents the planning horizon in terms of years. Default is 15.
@@ -101,8 +101,8 @@ IncludeUncertainty <- FALSE
 # If running RBEROST with uncertainty, how many scenarios would you like to view? Default is 3.
 n.scenarios <- 3 
 
-# If running RBEROST with uncertainty, how different would you like the scenarios to be? Each scenario will be solved for loading limits that are a certain percentage lower than the previous. Default is 0.20, or 20%.
-scenariostepchange <- 0.2
+# If running RBEROST with uncertainty, how different would you like the scenarios to be? Each scenario will be solved for loading limits that are a certain percentage lower than the previous. Default is 0.01, or 1%.
+scenariostepchange <- 0.01
 
 
 ### BMP Specifications
@@ -115,8 +115,8 @@ scenariostepchange <- 0.2
 
 # NEOS configuration
 email <- "detenbeck.naomi@epa.gov"
-NEOSresults <- "RBEROST-Pacific/Preprocessing/Outputs/Batch Results Still/"
-comments <- "Batch watershed optimization run 11-1-25 for testing"
+NEOSresults <- "RBEROST-Pacific/Outputs/Batch_Results/"
+comments <- "Batch watershed optimization no septic, avg prec year"
 
 # ----- Do not change anything below this line -------
 suppressWarnings({
@@ -138,184 +138,200 @@ if (!exists("final_cost_data") | !exists("final_effic_data")) {
   invisible(source("./RBEROST-Pacific/R/00_CostandEffic_Calc.R"))
 }
 if (!exists("road_data") | !exists("road_effic_data") | !exists("road_area")) {
-  invisible(source("./RBEROST-Pacific/R/00_ProcessRoadBMPs.R"))
+  invisible(source("./RBEROST-Pacific/R/00_ProcessRoadBMPsND.R"))
 }
 
 # Define all available watersheds - Full list of Puget Sound watersheds
-# Note: You can uncomment the full list below or define a subset for testing
+# Note: You can uncomment different list below or define a subset for testing
 
+# Puget Sound watersheds that can currently be optimized
+ 
+# Rivers/streams
 
-# Full list of all Puget Sound watersheds
 all_watersheds <- c(
-  "Agate East",
-  "Agate West",
-  "Artondale",
-  "Bainbridge Island East",
-  "Bainbridge Island West",
-  "Ballinger Lake",
-  "Birch Bay",
-  "Blackjack Cr",
-  "Buenna",
-  "Burley Cr",
-  "Butler Cr",
-  "Campbell Cr",
-  "Campbell Lake",
-  "Chambers Cr",
-  "Chico Cr",
-  "Clallam Bay",
-  "Coulter Cr",
-  "Cranberry Cr",
-  "Curley Cr",
-  "Dabob Bay",
-  "Dana Passage North",
-  "Dana Passage South",
-  "Deer Cr",
-  "Des Moines Cr",
-  "Deschutes R-Capitol Lake",
-  "Discovery Bay",
-  "Dosewallips",
-  "Duckabush",
-  "Dungeness",
-  "Dutcher Cove",
-  "Dyes Inlet",
-  "Ellis-Mission Cr",
-  "Ellisport",
-  "Elwha",
-  "Erie Lake",
-  "Federal Way",
-  "Fenwick Lake",
-  "Filucy Bay",
-  "Frye Cove",
-  "Gallagher Cove",
-  "Gig Harbor",
-  "Glen Cove",
-  "Goldsborough Cr",
-  "Gorst Cr",
-  "Grant East",
-  "Grant West",
-  "Green Cove",
-  "Green R",
-  "Green Valley Cr",
-  "Gull Harbor",
-  "Hale Passage",
-  "Hamma Hamma",
-  "Henderson Inlet",
-  "Herron",
-  "Hylebos Cr",
-  "Jarrel Cove",
-  "Johns Cr",
-  "Judd Cr",
-  "Kennedy-Schneider",
-  "Ketron",
-  "Kitsap NE",
-  "Kitsap-Hood",
-  "Lake Whatcom - Academy Subwatershed",
-  "Lake Whatcom - Agate Subwatershed",
-  "Lake Whatcom - Anderson-Whatcom Subwatershed",
-  "Lake Whatcom - Austin-Beaver Subwatershed",
-  "Lake Whatcom - Blodel Subwatershed",
-  "Lake Whatcom - Blue Canyon Subwatershed",
-  "Lake Whatcom - Brannian Subwatershed",
-  "Lake Whatcom - Cable Subwatershed",
-  "Lake Whatcom - Carpenter Subwatershed",
-  "Lake Whatcom - Donovan Subwatershed",
-  "Lake Whatcom - Eagle Ridge Subwatershed",
-  "Lake Whatcom - Fir Subwatershed",
-  "Lake Whatcom - Geneva Subwatershed",
-  "Lake Whatcom - Hillsdale Subwatershed",
-  "Lake Whatcom - North Shore Subwatershed",
-  "Lake Whatcom - Olsen Subwatershed",
-  "Lake Whatcom - Oriental Subwatershed",
-  "Lake Whatcom - Silver Beach Subwatershed",
-  "Lake Whatcom - Smith-Whatcom Subwatershed",
-  "Lake Whatcom - South Bay Subwatershed",
-  "Lake Whatcom - Strawberry Subwatershed",
-  "Lake Whatcom - Sudden Valley Subwatershed",
-  "Lake Washington",
-  "Liberty Bay",
-  "Loma Lake",
-  "Lopez Island",
-  "Lynch Cove",
-  "Mable Taylor Cr",
-  "Magnolia Bch",
-  "Maury Island",
-  "Mayo Cove",
-  "McAllister Cr",
-  "McCormick Cr",
-  "McLane Cove",
-  "McLane Cr",
-  "Mill Cr",
-  "Miller Bay",
-  "Miller Cr",
-  "Minter Cr",
-  "Moxlie Cr",
-  "Nisqually R",
-  "Nooksack",
-  "North Olympic",
-  "NW Hood",
-  "Olalla Cr",
-  "Orcas Island",
-  "Peale Passage",
-  "Perry Cr",
-  "Port Angeles",
-  "Port Gamble",
-  "Port Townsend",
-  "Purdy Cr",
-  "Puyallup R",
-  "Quilcene",
-  "Rocky Cr",
-  "Rosedale",
-  "Saltwater St Pk",
-  "Samish-Bell south",
-  "San Juan Island",
-  "Sawyer Lake",
-  "Schneider Cr",
-  "Sequim Bay",
-  "Sequalitchew Cr",
-  "Sherwood Cr",
-  "Shingle Mill Cr",
-  "Skagit",
-  "Skokomish",
-  "Skookum Cr",
-  "Snodgrass Cr",
-  "Snohomish",
-  "South Snohomish",
-  "Stillaguamish",
-  "Sun Pt",
-  "Tahlequah",
-  "Tahuya",
-  "Tolmie",
-  "University Place",
-  "Van Gelden",
-  "Vaughn",
-  "Whatcom-Bell north",
-  "Whidbey east",
-  "Whidbey west",
-  "Whitman Cove",
-  "Wilson Pt",
-  "Woodard Cr",
-  "Woodland Cr",
-  "Young Cove"
+ "Agate East",
+ "Agate West",
+ "Artondale",                                   
+ "Bainbridge Island West",
+ "Blackjack Cr",
+ "Burley Cr",
+ "Butler Cr",
+ "Campbell Cr",                                 
+ "Clallam Bay",
+ "Coulter Cr",
+ "Cranberry Cr",                               
+ "Curley Cr",
+ "Dabob Bay",
+ "Dana Passage North",                          
+ "Dana Passage South",
+ "Deer Cr",
+ "Des Moines Cr",                              
+ "Dosewallips",
+ "Duckabush",
+ "Dungeness", 
+ "Dutcher Cove",                               
+ "Ellis-Mission Cr",
+ "Ellisport",                                   
+ "Elwha",
+ "Frye Cove",                                  
+ "Gig Harbor",    
+ "Glen Cove",                                   
+ "Gorst Cr", 
+ "Grant East",                                  
+ "Grant West",
+ "Green Cove",
+ "Green R",                                     
+ "Green Valley Cr", 
+ "Gull Harbor",
+ "Hale Passage",                                
+ "Hamma Hamma",
+ "Henderson Inlet", 
+ "Herron",                                      
+ "Hylebos Cr", 
+ "Johns Cr",                                    
+ "Judd Cr",
+ "Kennedy-Schneider",
+ "Ketron",                                      
+ "Lopez Island",
+ "Lynch Cove",
+ "Mable Taylor Cr",                             
+ "Magnolia Bch",
+ "Maury Island",
+ "Mayo Cove",                                   
+ "McAllister Cr",
+ "McCormick Cr",
+ "McLane Cove",                                 
+ "McLane Cr",
+ "Mill Cr",
+ "Minter Cr" ,
+ "Moxlie Cr",                                   
+ "Nisqually R",
+ "North Olympic",                               
+ "Olalla Cr",
+ "Orcas Island",                                
+ "Peale Passage",
+ "Perry Cr",
+ "Purdy Cr",                                    
+ "Puyallup R",
+ "Quilcene",
+ "Rocky Cr",                                    
+ "Rosedale",
+ "Saltwater St Pk",
+ "San Juan Island",
+ "Schneider Cr",                                
+ "Sequim Bay", 
+ "Sherwood Cr",                                 
+ "Shingle Mill Cr",
+ "Skagit",
+ "Skokomish",                                   
+ "Skookum Cr",
+ "Snodgrass Cr",    
+ "Snohomish",                                   
+ "Sun Pt",                                      
+ "Tahlequah",
+ "Tahuya",
+ "Tolmie",                                      
+ "University Place",
+ "Van Gelden",
+ "Vaughn",                                      
+ "Whitman Cove",
+ "Wilson Pt",
+ "Woodard Cr",                                  
+ "Woodland Cr",
+ "Young Cove",
+ "UpperNisquallyR",
+ "MiddleForkSnoqualmieR",
+ "NForkSnoqualmieR",
+ "SkykomishR",
+ "LowerSnohomishR",
+ "BakerR",
+ "SaukR",
+ "UpperSkagitR",
+ "LowerSkagitR",
+ "LowerNisquallyR",
+ "LowerStillaguamishR",
+ "UpperStillaguamishR",
+ "RossReservoir",
+ "UpperSkagitToRossReservoir",
+ "NForkSkykomishR",
+ "SForkSkykomishR",
+ "SkykomishToForks"
 )
-# all_watersheds <- c(
-#  "Stillaguamish")
+
+# *Watersheds currently not optimizing due to issues with storage calculations for coastal catchments without NHDPlus flowlines, hopefully to be added in future version
 
 #all_watersheds <- c(
-#    "Minter Cr",
-#    "Agate East",
-#  "Agate West",
-#  "Artondale",
-#  "Whidbey east",
-#  "Wilson Pt"
-#  "Port Angeles",
-#  "Johns Cr",
-#  "Birch Bay",
-#  "Lake Whatcom - Smith-Whatcom Subwatershed",
-#  "Young Cove"
+# "Bainbridge Island East",
+# "Birch Bay",
+# "Buenna" ,                                     
+# "Chambers Cr",
+# "Chico Cr",                                    
+# "Discovery Bay",
+# "Dyes Inlet",
+# "Federal Way",                                 
+# "Filucy Bay", 
+# "Gallagher Cove",
+# "Goldsborough Cr", 
+# "Jarrel Cove", 
+# "Kitsap NE",
+# "Kitsap-Hood",
+# "Liberty Bay",
+# "Miller Bay",                                  
+# "Miller Cr", 
+# "Nooksack",
+# "NW Hood",
+# "Port Angeles",                                
+# "Port Gamble",
+# "Port Townsend", 
+# "Samish-Bell south",                           
+# "Sequalitchew Cr",
+# "South Snohomish",
+# "Stillaguamish",
+# "Whatcom-Bell north",
+# "Whidbey east",
+# "Whidbey west"                                
 #)
 
+# Lakes (uncomment section below to use)
+
+#all_watersheds <- c(
+# "Ballinger Lake",
+#  "Campbell Lake",                                
+#  "Deschutes R-Capitol Lake", 
+#  "Erie Lake",                   
+#  "Fenwick Lake",
+#  "Lake Whatcom - Academy Subwatershed",         
+#  "Lake Whatcom - Agate Subwatershed",
+#  "Lake Whatcom - Anderson-Whatcom Subwatershed",
+#  "Lake Whatcom - Austin-Beaver Subwatershed",
+#  "Lake Whatcom - Blodel Subwatershed",
+#  "Lake Whatcom - Blue Canyon Subwatershed",
+#  "Lake Whatcom - Brannian Subwatershed",        
+#  "Lake Whatcom - Cable Subwatershed",
+#  "Lake Whatcom - Carpenter Subwatershed",
+#  "Lake Whatcom - Donovan Subwatershed",         
+#  "Lake Whatcom - Eagle Ridge Subwatershed",     
+#  "Lake Whatcom - Fir Subwatershed",              
+#  "Lake Whatcom - Geneva Subwatershed",          
+#  "Lake Whatcom - Hillsdale Subwatershed",       
+#  "Lake Whatcom - North Shore Subwatershed",      
+#  "Lake Whatcom - Olsen Subwatershed",           
+#  "Lake Whatcom - Oriental Subwatershed",        
+#  "Lake Whatcom - Silver Beach Subwatershed",     
+#  "Lake Whatcom - Smith-Whatcom Subwatershed",   
+#  "Lake Whatcom - South Bay Subwatershed",
+#  "Lake Whatcom - Strawberry Subwatershed",      
+#  "Lake Whatcom - Sudden Valley Subwatershed",   
+#  "Lake Washington",
+#  "Loma Lake",                                 
+#  "Sawyer Lake"
+#)
+
+ 
 # Watersheds to exclude (known to cause errors or not suitable for batch processing)
+
 exclude_watersheds <- c()
+
 
 # Ensure that the batch result folder exists
 if (!dir.exists(NEOSresults)) {
