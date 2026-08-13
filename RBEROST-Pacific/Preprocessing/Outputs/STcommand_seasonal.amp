@@ -1,0 +1,142 @@
+# Tier 1 Command AMPL File
+#WMOST Optimization Screening Tool AMPL command file
+option presolve_warnings 10000;
+# Enable AMPL automatic scaling
+option scale_option 1;  # Enable automatic scaling for unit scaling sensitivity
+option scale_tolerance 1e-12;  # Relaxed from baseline 1e-12
+# option cplex_options 'feasibility 1e-1'; # Relaxed from baseline 1e-6
+option data_warn 0;
+# option cplex_options 'absmipgap 1.0';
+# explore infeasibility
+# option cplex_options 'conflict';
+# option cplex_options 'emphasis numerical 1';
+solve;
+
+param urban_frac_by_comid_bmp {c in comid_all, u in urban_bmp};
+
+# Now compute derived reporting parameters, using the current values of variables
+for {c in comid_all, u in urban_bmp} {
+  let urban_frac_by_comid_bmp[c,u] :=
+    (sum {d in urban_land_uses, n in urban_soil_groups}
+       urban_frac[c,d,n,u] * urban_area[c,d,n,'urban']) /
+    (sum {d in urban_land_uses, n in urban_soil_groups}
+       urban_area[c,d,n,'urban'] + 1e-10);
+}
+
+display urban_frac_by_comid_bmp;
+
+param road_frac_by_comid_bmp {c in comid_all, r in road_bmp};
+
+for {c in comid_all, r in road_bmp} {
+  let road_frac_by_comid_bmp[c,r] :=
+    (sum {h in road_soil_groups}
+       road_frac[c,h,r] * road_area[c,h,'road']) /
+    (sum {h in road_soil_groups}
+       road_area[c,h,'road'] + 1e-10);
+}
+
+display road_frac_by_comid_bmp;
+
+# # Declarations (as you already had)
+# param reduced_urban_load {c in comid_all, s in seasons, y in years};
+# 
+# let {c in comid_all, s in seasons, y in years} reduced_urban_load[c,s,y] :=
+#     baseloads_N1[c,s,y,'urban']
+#     * max(0, 1
+#             - sum {d in urban_land_uses, n in urban_soil_groups, u in urban_bmp}
+#                 urban_effic_N[c,s,y,d,n,u] * urban_frac[c,d,n,u]);
+# 
+# display reduced_urban_load;
+# 
+# param reduced_road_load  {c in comid_all, s in seasons, y in years};
+# 
+# let {c in comid_all, s in seasons, y in years} reduced_road_load[c,s,y] :=
+#     baseloads_N1[c,s,y,'road']
+#     * max(0, 1
+#             - sum {h in road_soil_groups, r in road_bmp}
+#                 road_effic_N[c,s,y,h,r] * road_frac[c,h,r]);
+# 
+# display reduced_road_load;
+# 
+# param reduced_ag_load    {c in comid_all, s in seasons, y in years};
+# 
+# let {c in comid_all, s in seasons, y in years} reduced_ag_load[c,s,y] :=
+#     baseloads_N1[c,s,y,'ag']
+#     * max(0, 1
+#             - sum {a in ag_bmp} ag_effic_N[c,a] * ag_frac[c,a]);
+# 
+# display reduced_ag_load;
+# 
+# param reduced_graz_load  {c in comid_all, s in seasons, y in years};
+# 
+# let {c in comid_all, s in seasons, y in years} reduced_graz_load[c,s,y] :=
+#     baseloads_N1[c,s,y,'graz']
+#     * max(0, 1
+#             - sum {g in graz_bmp} graz_effic_N[c,g] * graz_frac[c,g]);
+# 
+# display reduced_graz_load;
+# 
+# param reduced_storage_load {c in comid_all, s in seasons, y in years};
+# 
+# let {c in comid_all} reduced_storage_load[c, 2, 7] := no_storage_NPSload_N1[c, 1, 7] * transfer_coefficients_N1[c, 2, 7, 'coeff'];
+# 
+# display {c in comid_all} reduced_storage_load[c, 2, 7];
+# 
+# 
+# let {c in comid_all} reduced_storage_load[c, 3, 7] := no_storage_NPSload_N1[c, 2, 7] * transfer_coefficients_N1[c, 3, 7, 'coeff'];
+# 
+# display {c in comid_all} reduced_storage_load[c, 3, 7];
+# 
+# param reduced_other_load {c in comid_all, s in seasons, y in years};
+# 
+# let {c in comid_all, s in seasons, y in years} reduced_other_load[c,s,y] :=
+#     baseloads_N1[c,s,y,'other'];
+# 
+# display reduced_other_load;
+# 
+# param reduced_septic_load {c in comid_all, s in seasons, y in years};
+# 
+# let {c in comid_all, s in seasons, y in years} reduced_septic_load[c,s,y] :=
+# 	((baseloads_N1[c,s,y,'septic']/septic_bmp_implementationtotal[c, 'total_parcels']) * septic_frac[c,'Sewer_convert'] * 	septic_effic_N[c,'Sewer_convert']) * (1 - sum{p in point_bmp}(point_effic_N[c,p] * point_dec[c,p])) + 
+#         (baseloads_N1[c,s,y,'septic'] - sum {e in septic_bmp} (baseloads_N1[c,s,y,'septic']/
+# 	septic_bmp_implementationtotal[c, 'total_parcels']) * septic_frac[c,e] * septic_effic_N[c,e]);
+# 
+# display reduced_septic_load;
+# 
+# param riparian_load_reduction {c in comid_all, s in seasons, y in years};
+# 
+# let {c in comid_all, s in seasons, y in years} riparian_load_reduction[c,s,y] :=
+#     sum {b in ripbuf_bmp}
+# 	ripbuf_length[c,b] * riparianremoval_N1[c,s,y,b] * ((1 - sum {a in ag_bmp}(ag_effic_N[c,a] * ag_frac[c,a]) * 	baseloads_N1[c,s,y,'ag']/riparianload_N1[c,s,y,'riparian']) + 
+#         (1 - sum{d in urban_land_uses, n in urban_soil_groups, u in urban_bmp}(urban_effic_N[c,s,y,d,n,u] * urban_frac[c,d,n,u]) * 
+#         (riparianload_N1[c,s,y,'riparian'] - baseloads_N1[c,s,y,'ag'])/riparianload_N1[c,s,y,'riparian']));
+# 
+# display riparian_load_reduction;
+
+option display_precision 10;
+display solve_result_num, solve_result;
+display cost.result;
+display cost;
+option display_1col 10000000000;
+option display_width 100000000000;
+option display_transpose -10000;
+option omit_zero_rows 1;
+option omit_zero_cols 1;
+option display_1col 0;
+display point_dec;
+display urban_frac;
+display road_frac;
+display urban_frac_by_comid_bmp;
+display road_frac_by_comid_bmp;
+display ag_frac;
+display graz_frac;
+display ripbuf_length;
+# display min_total_load2;
+display reduced_ag_load_N1;
+display reduced_urb_load_N1;   
+display reduced_road_load_N1;
+display riparian_reduction_load_N1;
+;
+display septic_frac;
+
+      display reduced_septic_load_N1;
