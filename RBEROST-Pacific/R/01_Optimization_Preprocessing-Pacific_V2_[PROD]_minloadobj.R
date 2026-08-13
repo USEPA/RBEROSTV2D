@@ -54,7 +54,7 @@ user_specs_BMPs <- fread(
 ### II. Read in data ------
 #base target data
 # adjusted_targets <- read.csv(paste0(InPath,"01_UserSpecs_loadingtargets.csv")) %>% #*# 
-adjusted_targets <- read.csv(paste0(InPath,"01_UserSpecs_loadingtargets_allpt05Lgwshdsegments.csv")) %>%
+adjusted_targets <- read.csv(paste0(InPath,"01_UserSpecs_loadingtargets_updatedwet.csv")) %>%
   select(-watershed_ID)
 
 if (MODE=="All") {
@@ -422,11 +422,13 @@ temp_inc_tp$ip_other <- with(temp_inc_tp, PLOAD_INC_FOREIGN+PLOAD_INC_NATP_MT)
 temp_inc_tp$ip_storage <- with(temp_inc_tp, PLOAD_INC_STORAGE)
 temp_inc_tp$ip_road <- 0 #*# KM: Maintaining, but setting to 0 for consistency with TN model
 temp_inc_tp$ip_graz <- 0 #*# KM: Maintaining so structure is present if loads become significant in future SPARROW models
-temp_inc_tp$in_septic <- with(temp_inc_tp, PLOAD_INC_SEPTIC) # CTC edited: 2/5/2026
+# temp_inc_tp$in_septic <- with(temp_inc_tp, PLOAD_INC_SEPTIC) # CTC edited: 2/5/2026
+temp_inc_tp$ip_septic <- with(temp_inc_tp, PLOAD_INC_SEPTIC) # ND edited: 8/3/2026
 
 inc_tp <- temp_inc_tp %>% 
   # select(c("comid", "year", "season", "ip_poin", "ip_urb", "ip_road", "ip_ag", "ip_graz", "ip_other", "ip_storage")) 
-  select(c("comid", "year", "season", "ip_poin", "ip_urb", "ip_road", "ip_ag", "ip_graz", "in_septic","ip_other", "ip_storage")) 
+  # select(c("comid", "year", "season", "ip_poin", "ip_urb", "ip_road", "ip_ag", "ip_graz", "in_septic","ip_other", "ip_storage")) 
+  select(c("comid", "year", "season", "ip_poin", "ip_urb", "ip_road", "ip_ag", "ip_graz", "ip_septic","ip_other", "ip_storage")) # ND 8/3/26
 
 ### IV. N point source loading ------
 inc_tn_rev <- inc_tn
@@ -3022,69 +3024,132 @@ if(
   }else{
     print("Generated TN param load limit by target percentage based only on actionable load components")
   }
-  
-  if(actionable_load == TRUE){
+ # ND 8/3/26 corrected code from working TN version above, with this added missing septic
+   if(actionable_load == TRUE){
     invisible(
       if("TP" %in% user_specs_loadingtargets$TN_or_TP) {
         param_loads_lim_tp <-
           foreach(i = 1:length(temp_inc_tp_dat)) %do% {
             
-            limit <- user_specs_loadingtargets[i, "adjusted_annual_target_kgperyr"]
+#            riparian_load <- temp_riparian_tp_dat[[i]]
+#ND 6/18/26 save total load season x year            
+            load_lim_temp <- temp_inc_tp_dat[[i]] %>% 
+#              merge(riparian_load, by = c("comid", "season", "year")) %>%
+              group_by(year, season) %>%
+              
+              
+              summarize(total_load = sum(ip_poin, na.rm = TRUE) + sum(ip_urb, na.rm = TRUE) + 
+                          sum(ip_septic, na.rm = TRUE) + sum(ip_ag, na.rm = TRUE) + sum(ip_graz, na.rm = TRUE) + 
+                          sum(ip_road, na.rm = TRUE) + sum(ip_storage, na.rm = TRUE),
+                        # + sum(ip_riparian),#+ sum(ip_other) # CTC edited: 2/5/2026 ND edited 2/23/26
+                        load_lim = (1 - as.numeric(load_target_tp[i])) * (sum(ip_poin, na.rm = TRUE) + 
+                          sum(ip_urb, na.rm = TRUE) + sum(ip_septic, na.rm = TRUE) + sum(ip_ag, na.rm = TRUE) + 
+                            sum(ip_graz, na.rm = TRUE) + sum(ip_road, na.rm = TRUE) + sum(ip_storage, na.rm = TRUE)),
+                        # + sum(ip_riparian)),# + sum(ip_other) # CTC edited: 2/5/2026 ND 2/23/26
+                        .groups = "drop"
+              )
+            load_lim <- load_lim_temp %>%
+              select(season, year, load_lim) %>%
+              merge(., year_xwalk, by = "year") %>%
+              select(-year) %>%
+              rename(year = model_year)
+          }
+
+        param_total_loads_tp <-
+          foreach(i = 1:length(temp_inc_tp_dat)) %do% {
             
 #            riparian_load <- temp_riparian_tp_dat[[i]]
             
             load_lim_temp <- temp_inc_tp_dat[[i]] %>% 
 #              merge(riparian_load, by = c("comid", "season", "year")) %>%
               group_by(year, season) %>%
-              summarize(total_load = sum(ip_poin, na.rm = TRUE) + sum(ip_urb, na.rm = TRUE) +
-                sum(ip_ag, na.rm = TRUE) + sum(ip_graz, na.rm = TRUE) +
-                sum(ip_road, na.rm = TRUE) + sum(ip_storage, na.rm = TRUE),# + sum(ip_riparian) + sum(ip_other) 
+              
+              summarize(total_load = sum(ip_poin, na.rm = TRUE) + sum(ip_urb, na.rm = TRUE) + 
+                          sum(ip_septic, na.rm = TRUE) + sum(ip_ag, na.rm = TRUE) + sum(ip_graz, na.rm = TRUE) + 
+                          sum(ip_road, na.rm = TRUE) + sum(ip_storage, na.rm = TRUE),
+                        # + sum(ip_riparian),#+ sum(ip_other) # CTC edited: 2/5/2026 ND edited 2/23/26
                         .groups = "drop"
-              ) %>%
-              group_by(year) %>%
-              mutate(season_share = total_load/sum(total_load)) %>%
-              ungroup() %>%
-              mutate(load_lim = limit * season_share)
-            
-            load_lim <- load_lim_temp %>%
-              select(season, year, load_lim) %>%
+              )
+
+            total_load <- load_lim_temp %>%
+              select(season, year, total_load) %>%
               merge(., year_xwalk, by = "year") %>%
               select(-year) %>%
               rename(year = model_year)
-
-# ND 6/18/26 start edits            
-            total_load <- load_lim_temp %>%
-              select(season, year, total_load) %>%
-              merge(., year_xwalk, by = "year") %>%
-              select(-year) %>%
-              rename(year = model_year) 
-            # ND 6/18/26 end edits  
-          }
-        param_total_loads_tp <-
-          foreach(i = 1:length(temp_inc_tp_dat)) %do% {
+            # ND 6/18/26 end edits
             
-            load_lim_temp <- temp_inc_tp_dat[[i]] %>% 
-#              merge(riparian_load, by = c("comid", "season", "year")) %>%
-              group_by(year, season) %>%
-              summarize(total_load = sum(ip_poin, na.rm = TRUE) + sum(ip_urb, na.rm = TRUE) +
-                          sum(ip_ag, na.rm = TRUE) + sum(ip_graz, na.rm = TRUE) +
-                          sum(ip_road, na.rm = TRUE) + sum(ip_storage, na.rm = TRUE),# + sum(ip_riparian) + sum(ip_other) 
-                        .groups = "drop"
-              ) %>%
-           
-            total_load <- load_lim_temp %>%
-              select(season, year, total_load) %>%
-              merge(., year_xwalk, by = "year") %>%
-              select(-year) %>%
-              rename(year = model_year) 
-            # ND 6/18/26 end edits  
           }        
+        
       }
     )
-    print("Generating TP param load limit based only on actionable load components") # CTC edited: 2/5/2026
-  }else{
-    print("Moving to generate TP param load limit based on all loads") # CTC edited: 2/5/2026
-  }
+    print("Generating TP param load limit based only on actionable load components")
+  } else {
+    print("Moving to generate TP param load limit based on all loads")
+  } 
+ 
+  # Replaced malfunctioning code below
+#   if(actionable_load == TRUE){
+#     invisible(
+#       if("TP" %in% user_specs_loadingtargets$TN_or_TP) {
+#         param_loads_lim_tp <-
+#           foreach(i = 1:length(temp_inc_tp_dat)) %do% {
+#             
+#             limit <- user_specs_loadingtargets[i, "adjusted_annual_target_kgperyr"]
+#             
+# #            riparian_load <- temp_riparian_tp_dat[[i]]
+#             
+#             load_lim_temp <- temp_inc_tp_dat[[i]] %>% 
+# #              merge(riparian_load, by = c("comid", "season", "year")) %>%
+#               group_by(year, season) %>%
+#               summarize(total_load = sum(ip_poin, na.rm = TRUE) + sum(ip_urb, na.rm = TRUE) +
+#                 sum(ip_ag, na.rm = TRUE) + sum(ip_graz, na.rm = TRUE) +
+#                 sum(ip_road, na.rm = TRUE) + sum(ip_storage, na.rm = TRUE),# + sum(ip_riparian) + sum(ip_other) 
+#                         .groups = "drop"
+#               ) %>%
+#               group_by(year) %>%
+#               mutate(season_share = total_load/sum(total_load)) %>%
+#               ungroup() %>%
+#               mutate(load_lim = limit * season_share)
+#             
+#             load_lim <- load_lim_temp %>%
+#               select(season, year, load_lim) %>%
+#               merge(., year_xwalk, by = "year") %>%
+#               select(-year) %>%
+#               rename(year = model_year)
+# 
+# # ND 6/18/26 start edits            
+#             total_load <- load_lim_temp %>%
+#               select(season, year, total_load) %>%
+#               merge(., year_xwalk, by = "year") %>%
+#               select(-year) %>%
+#               rename(year = model_year) 
+#             # ND 6/18/26 end edits  
+#           }
+#         param_total_loads_tp <-
+#           foreach(i = 1:length(temp_inc_tp_dat)) %do% {
+#             
+#             load_lim_temp <- temp_inc_tp_dat[[i]] %>% 
+# #              merge(riparian_load, by = c("comid", "season", "year")) %>%
+#               group_by(year, season) %>%
+#               summarize(total_load = sum(ip_poin, na.rm = TRUE) + sum(ip_urb, na.rm = TRUE) +
+#                           sum(ip_ag, na.rm = TRUE) + sum(ip_graz, na.rm = TRUE) +
+#                           sum(ip_road, na.rm = TRUE) + sum(ip_storage, na.rm = TRUE),# + sum(ip_riparian) + sum(ip_other) 
+#                         .groups = "drop"
+#               ) %>%
+#            
+#             total_load <- load_lim_temp %>%
+#               select(season, year, total_load) %>%
+#               merge(., year_xwalk, by = "year") %>%
+#               select(-year) %>%
+#               rename(year = model_year) 
+#             # ND 6/18/26 end edits  
+#           }        
+#       }
+#     )
+#     print("Generating TP param load limit based only on actionable load components") # CTC edited: 2/5/2026
+#   }else{
+#     print("Moving to generate TP param load limit based on all loads") # CTC edited: 2/5/2026
+#   }
   if(actionable_load == FALSE){
     invisible(
       if("TP" %in% user_specs_loadingtargets$TN_or_TP) {
@@ -3095,12 +3160,12 @@ if(
             
 #            riparian_load <- temp_riparian_tp_dat[[i]]
             
-            load_lim_temp <- temp_inc_tp_dat[[i]] %>%
+            load_lim_temp <- temp_inc_tp_dat[[i]] %>% # ND 8/4/26 added missing septic
 #              merge(riparian_load, by = c("comid", "season", "year")) %>% 
               group_by(year, season) %>%
               summarize(total_load = sum(ip_poin, na.rm = TRUE) + sum(ip_urb, na.rm = TRUE) +
                   sum(ip_ag, na.rm = TRUE) + sum(ip_graz, na.rm = TRUE) + sum(ip_road, na.rm = TRUE) +
-                  sum(ip_storage, na.rm = TRUE) + sum(ip_other, na.rm = TRUE), 
+                  sum(ip_septic, na.rm = TRUE) + sum(ip_storage, na.rm = TRUE) + sum(ip_other, na.rm = TRUE), 
                   # + sum(ip_riparian, na.rm = TRUE),
                         .groups = "drop"
               ) %>%
@@ -3120,10 +3185,10 @@ if(
           foreach(i = 1:length(temp_inc_tp_dat)) %do% {
             load_lim_temp <- temp_inc_tp_dat[[i]] %>%
 #              merge(riparian_load, by = c("comid", "season", "year")) %>% 
-              group_by(year, season) %>%
+              group_by(year, season) %>% #ND 8/4/26 added missing septic
               summarize(total_load = sum(ip_poin, na.rm = TRUE) + sum(ip_urb, na.rm = TRUE) +
                   sum(ip_ag, na.rm = TRUE) + sum(ip_graz, na.rm = TRUE) + sum(ip_road, na.rm = TRUE) +
-                  sum(ip_storage, na.rm = TRUE) + sum(ip_other, na.rm = TRUE), 
+                  sum(ip_septic, na.rm = TRUE), sum(ip_storage, na.rm = TRUE) + sum(ip_other, na.rm = TRUE), 
                   # + sum(ip_riparian, na.rm = TRUE),
                         .groups = "drop"
               ) %>%
@@ -3166,8 +3231,8 @@ if(
         mutate(comid_form = paste0("'", temp_inc_tp_dat_opt$comid, "'")) %>% 
         merge(., year_xwalk, by = "year") %>%
         select(-year) %>%
-        rename(year = model_year) %>%
-        select(c("comid_form", "season", "year", "ip_poin", "ip_urb", "ip_road", "ip_ag", "ip_graz", "ip_storage", "ip_other"))
+        rename(year = model_year) %>% # ND 8/4/26 added missing septic
+        select(c("comid_form", "season", "year", "ip_poin", "ip_urb", "ip_road", "ip_ag", "ip_septic", "ip_graz", "ip_storage", "ip_other"))
     }
   }
   
@@ -3236,7 +3301,8 @@ if(
           merge(., year_xwalk, by = "year") %>%
           select(-year) %>%
           rename(year = model_year) %>%
-          select(c('comid_form', season, year, 'coeff', 'notrib'))
+          select(c('comid_form', season, year, 'coeff', 'notrib')) %>%
+          arrange(comid_form, year, season)
       } else {
         NULL
       }
@@ -3254,7 +3320,8 @@ if(
           merge(., year_xwalk, by = "year") %>%
           select(-year) %>%
           rename(year = model_year) %>%
-          select(c('comid_form', season, year, 'coeff','notrib'))
+          select(c('comid_form', season, year, 'coeff','notrib')) %>%
+          arrange(comid_form, year, season)
       } else {
         NULL  # Skip empty data frames
       }
@@ -4520,21 +4587,21 @@ if(
     }
   )
 
-# ND 6/18/26 Add parameter for total baseline loads season x year
+# ND 6/18/26 Add parameter for total baseline loads season x year, 8/4/26 add missing septic to list
   
   
   invisible(
     if("TP" %in% user_specs_loadingtargets$TN_or_TP) {
       foreach(i = 1:length(inc_tp_dat)) %do% {
         write(
-          paste0("\nparam baseloads_P", i, " : 'point' 'urban' 'road' 'ag' 'graz' 'storage' 'other' :="), 
+          paste0("\nparam baseloads_P", i, " : 'point' 'urban' 'road' 'ag' 'septic' 'graz' 'storage' 'other' :="), 
           file = paste(OutPath, "STdata_seasonal.dat", sep = ""),
           append = T
         )
         write.table(
           inc_tp_dat[[i]] %>% 
             select(
-              comid_form, season, year, point = ip_poin, urban = ip_urb, road = ip_road, ag = ip_ag, graz = ip_graz,
+              comid_form, season, year, point = ip_poin, urban = ip_urb, road = ip_road, ag = ip_ag, septic = ip_septic, graz = ip_graz,
               storage = ip_storage, other = ip_other
             ) %>%
             arrange(comid_form,  year, season) %>%
@@ -6688,7 +6755,7 @@ if(
       }
     }
   )
-  
+  # ND 8/7/26 fixed parameter name for param total_load_P  
   invisible(
     if("TP" %in% user_specs_loadingtargets$TN_or_TP) {
       foreach(i = 1:length(param_total_loads_tp)) %do% {
@@ -6697,7 +6764,7 @@ if(
         
         if (nrow(temp_total_load) > 0) {
           cat(
-            paste0("\nparam total_load_P", i, " : 'limits' :=  \n"),
+            paste0("\nparam total_load_P", i, " : 'total_load' :=  \n"),
             file = paste(OutPath, "STdata_seasonal.dat", sep = ""),
             sep = "",
             append = T
@@ -6718,7 +6785,7 @@ if(
           )
         } else {
           cat(
-            paste0("\nparam total_load_P", i, " : 'limits' :=  \n"),
+            paste0("\nparam total_load_P", i, " : 'total_load' :=  \n"),
             file = paste(OutPath, "STdata_seasonal.dat", sep = ""),
             sep = "",
             append = T
@@ -7746,21 +7813,6 @@ param road_effic_P {comid_all_P, seasons, years, road_soil_groups, road_bmp};\n"
   
   cat("\n", file = paste(OutPath, "STmodel_seasonal.mod", sep = ""), append = T)
   
-  invisible(
-    if("TP" %in% user_specs_loadingtargets$TN_or_TP) {
-      foreach(i = 1:length(sm_P_dat)) %do% {
-        cat(
-          paste0("param transfer_coefficients_P", i, " {comid_P", i, ", transfer_types};"),
-          file = paste(OutPath, "STmodel_seasonal.mod", sep = ""),
-          sep = "\n",
-          append = T
-        )
-      }
-    }
-  )
-  
-  cat("\n", file = paste(OutPath, "STmodel_seasonal.mod", sep = ""), append = T)
-
   # add param total_load_Ni and total_load_Pi
   invisible(
     if("TN" %in% user_specs_loadingtargets$TN_or_TP) {
@@ -8049,20 +8101,37 @@ subject to road_load_lower {c in comid_N", i, ", s in seasons, y in years}:
  #     append = T
  #   )
  # }
+# ND 8/3/26 Updated to include TP for lakes
 # Comment this out if cost minimization objective above is enabled (uncommented)
+  if ("TN" %in% user_specs_loadingtargets$TN_or_TP){  
 cat(
     "/* selector parameters for the diagnostic objective */
-param S integer in seasons default 4;
-param Y integer in years   default 15;
+param S integer in seasons default 1;
+param Y integer in years   default 7;
 
 /* temporary objective: minimize the seasonal total load */
-minimize min_total_load2:   sum {c in comid_N1} inc_storage_load_N1[c, 4,15];
+/* replace s,y (1,7) with season and year as needed */
+minimize min_total_load2:   sum {c in comid_N1} inc_storage_load_N1[c, 1,7];
   \n",
     file = paste(OutPath, "STmodel_seasonal.mod", sep = ""),
     sep = "\n",
     append = T
   )
-  
+  }  
+  if ("TP" %in% user_specs_loadingtargets$TN_or_TP){  
+    cat(
+      "/* selector parameters for the diagnostic objective */
+param S integer in seasons default 1;
+param Y integer in years   default 7;
+
+/* temporary objective: minimize the seasonal total load */
+minimize min_total_load_P:   sum {c in comid_P1} inc_storage_load_P1[c, 1,7];
+  \n",
+      file = paste(OutPath, "STmodel_seasonal.mod", sep = ""),
+      sep = "\n",
+      append = T
+    )
+  }    
   ### Incremental Storage Load Equations ---------------------------------------- 
 
 #### CTC edited: 2/5/2026 transferred from dynamic LIS RBEROST ####
@@ -8173,13 +8242,13 @@ minimize min_total_load2:   sum {c in comid_N1} inc_storage_load_N1[c, 4,15];
       reduced_storage_load_N",i,"[c,s,y] =\n
         if transfer_coefficients_N",i,"[c,s,y,'notrib'] = 1 then\n 
           (no_storage_NPSload_N",i,"[c,s,y] * transfer_coefficients_N",i,"[c,s,y,'coeff']) / (1 - transfer_coefficients_N",i,"[c,s,y,'coeff'])\n
-        else if transfer_coefficients_N",i,"[c,s,y,'notrib'] = 0 & s = first(seasons) then\n
+        else if transfer_coefficients_N",i,"[c,s,y,'notrib'] = 0 and s = first(seasons) then\n
           if y = first(years) then
             baseloads_N",i,"[c,s,y,'storage']\n
           else if y != first(years) then\n
             (no_storage_NPSload_N",i,"[c,4,y-1] 
             * transfer_coefficients_N",i,"[c,s,y,'coeff']) / (1 - transfer_coefficients_N",i,"[c,s,y,'coeff'])\n
-        else if transfer_coefficients_N",i,"[c,s,y,'notrib'] = 0 & s != first(seasons) then\n
+        else if transfer_coefficients_N",i,"[c,s,y,'notrib'] = 0 and s != first(seasons) then\n
           (no_storage_NPSload_N",i,"[c,s-1,y] 
 * transfer_coefficients_N",i,"[c,s,y,'coeff']) / (1 - transfer_coefficients_N",i,"[c,s,y,'coeff']);\n
     
@@ -8381,14 +8450,14 @@ print("Basing TN incremental equations only on actionable load components")
       reduced_storage_load_P",i,"[c,s,y] =\n
         if transfer_coefficients_P",i,"[c,s,y,'notrib'] = 1 then\n 
           (no_storage_NPSload_P",i,"[c,s,y] * transfer_coefficients_P",i,"[c,s,y,'coeff']) / (1 - transfer_coefficients_P",i,"[c,s,y,'coeff'])\n
-        else if transfer_coefficients_P",i,"[c,s,y,'notrib'] = 0 & s = first(seasons) then\n
+        else if transfer_coefficients_P",i,"[c,s,y,'notrib'] = 0 and s = first(seasons) then\n
           if y = first(years) then
             baseloads_P",i,"[c,s,y,'storage']\n
           else\n
             (no_storage_NPSload_P",i,"[c,4,y-1] + reduced_storage_load_P",i,"[c,4,y-1]) 
             * transfer_coefficients_P",i,"[c,s,y,'coeff']\n
-        else if transfer_coefficients_P",i,"[c,s,y,'notrib'] = 0 & s != first(seasons)\n
-          (no_storage_NPSload_P",i,"[c,s-1,y] + reduced_storage_load_P",i,"[c,s-1,y])
+        else if transfer_coefficients_P",i,"[c,s,y,'notrib'] = 0 and s != first(seasons)\n
+          then (no_storage_NPSload_P",i,"[c,s-1,y] + reduced_storage_load_P",i,"[c,s-1,y])
               * transfer_coefficients_P",i,"[c,s,y,'coeff'];\n
     
     subject to calc_inc_storage_load_P", i, "{c in comid_P", i, ", s in seasons, y in years}:\n
@@ -8785,10 +8854,10 @@ for {c in comid_all, u in urban_bmp} {
 display urban_frac_by_comid_bmp;
 
 param road_frac_by_comid_bmp {c in comid_all, r in road_bmp};
-
+# ND 8/6/26 Moved if statement after let
 for {c in comid_all, r in road_bmp} {
-   if sum {h in road_soil_groups} road_area[c,h,'road'] > 0 then
   let road_frac_by_comid_bmp[c,r] :=
+   if sum {h in road_soil_groups} road_area[c,h,'road'] > 0 then  
     (sum {h in road_soil_groups}
        road_frac[c,h,r] * road_area[c,h,'road']) /
     (sum {h in road_soil_groups}
@@ -8858,10 +8927,12 @@ display reduced_other_load;
 param riparian_load_reduction {c in comid_all, s in seasons, y in years};
 
 let {c in comid_all, s in seasons, y in years} riparian_load_reduction[c,s,y] :=
+    if riparianload_N1[c,s,y,'riparian'] > 0 then
     sum {b in ripbuf_bmp}
 	ripbuf_length[c,b] * riparianremoval_N1[c,s,y,b] * ((1 - sum {a in ag_bmp}(ag_effic_N[c,a] * ag_frac[c,a]) * 	baseloads_N1[c,s,y,'ag']/riparianload_N1[c,s,y,'riparian']) + 
         (1 - sum{d in urban_land_uses, n in urban_soil_groups, u in urban_bmp}(urban_effic_N[c,s,y,d,n,u] * urban_frac[c,d,n,u]) * 
-        (riparianload_N1[c,s,y,'riparian'] - baseloads_N1[c,s,y,'ag'])/riparianload_N1[c,s,y,'riparian']));
+        (riparianload_N1[c,s,y,'riparian'] - baseloads_N1[c,s,y,'ag'])/riparianload_N1[c,s,y,'riparian']))
+        else 0;
 
 display riparian_load_reduction;
 
@@ -8883,11 +8954,6 @@ display road_frac_by_comid_bmp;
 display ag_frac;
 display graz_frac;
 display ripbuf_length;
-display min_total_load2;
-display reduced_ag_load_N1;
-display reduced_urb_load_N1;   
-display reduced_road_load_N1;
-display riparian_reduction_load_N1;
 ;\n",
 file = paste(OutPath, "STcommand_seasonal.amp", sep=""),
 append = TRUE)  
@@ -8906,9 +8972,9 @@ append = TRUE)
   }
   if(length(Septic_BMPs) > 0 & septic_data_available) {
   cat(
-    "param reduced_septic_load {c in comid_all, s in seasons, y in years};/n
+    "param reduced_septic_load {c in comid_all, s in seasons, y in years};\n
     
-    let {c in comid_all, s in seasons, y in years} reduced_septic_load[c,s,y] := /n
+    let {c in comid_all, s in seasons, y in years} reduced_septic_load[c,s,y] := \n
       ((baseloads_N1[c,s,y,'septic']/septic_bmp_implementationtotal[c, 'total_parcels']) * septic_frac[c,'Sewer_convert'] * 	septic_effic_N[c,'Sewer_convert']) * (1 - sum{p in point_bmp}(point_effic_N[c,p] * point_dec[c,p])) + 
       (baseloads_N1[c,s,y,'septic'] - sum {e in septic_bmp} (baseloads_N1[c,s,y,'septic']/
                                                                septic_bmp_implementationtotal[c, 'total_parcels']) * septic_frac[c,e] * septic_effic_N[c,e]);
@@ -8918,5 +8984,26 @@ append = TRUE)
   )
   }
 
+  # ND 8/3/26 Added display of min_total_load_P if P included in analysis;
+  if ("TP" %in% user_specs_loadingtargets$TN_or_TP) {
+    cat(
+      "display min_total_load_P;\n",
+      file = paste(OutPath, "STcommand_seasonal.amp", sep=""),
+      append = TRUE
+    )
+  }
+  
   #### end edits ####
 
+# ND 9/3/26 Add display of N load components only if N included in analysis
+  if ("TN" %in% user_specs_loadingtargets$TN_or_TP) {
+    cat(   
+    "display min_total_load2\n;
+    display reduced_ag_load_N1;
+    display reduced_urb_load_N1;   
+    display reduced_road_load_N1;
+    display riparian_reduction_load_N1;",
+          file = paste(OutPath, "STcommand_seasonal.amp", sep=""),
+      append = TRUE
+    )
+  }
