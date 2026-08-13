@@ -1,0 +1,121 @@
+You are using the solver cplexamp.
+
+%% COMMENTS %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Batch watershed optimization run no septic updated load targets 7/12/2026
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Checking ampl.mod for cplex_options...
+Checking ampl.com for cplex_options...
+Executing AMPL.
+processing data.
+processing commands.
+Executing on prod-exec-1.neos-server.org
+
+Presolve eliminates 500 constraints and 192 variables.
+Adjusted problem:
+123 variables:
+	27 binary variables
+	96 linear variables
+106 constraints, all linear; 361 nonzeros
+	56 equality constraints
+	50 inequality constraints
+1 linear objective; 13 nonzeros.
+
+CPLEX 22.1.2:   tech:threads = 4
+CPLEX 22.1.2: optimal solution; objective 72360790.24
+5 simplex iterations
+urban_frac_by_comid_bmp :=
+'23989291' Extended_Dry_Detention_Basin   0
+'23989291' Grass_Swale_w_D                0
+'23989291' Green_Roof                     0
+'23989291' Infiltration_Basin             0
+'23989291' Permeable_Pavement             0
+'23989291' Porous_Pavement_w_UD           0
+'23989291' Sand_Filter_w_UD               0
+'23989291' Wet_Pond                       0
+;
+
+road_frac_by_comid_bmp :=
+'23989291' Extended_Dry_Detention_Basin   0
+'23989291' Grass_Swale_w_D                0
+'23989291' Infiltration_Basin             0
+'23989291' Infiltration_Chamber           0
+'23989291' Infiltration_Trench            0
+'23989291' Permeable_Pavement             0.1
+'23989291' Porous_Pavement_w_UD           0.1
+'23989291' Sand_Filter_w_UD               0.8
+'23989291' Wet_Pond                       0
+;
+
+solve_result_num = 0
+solve_result = solved
+
+cost.result = solved
+
+cost = 72360790.24
+
+point_dec [*,*];
+
+urban_frac ['23989291',UIDU,*,*]
+ ['23989291',URHD,*,*]
+ ['23989291',URLD,*,*]
+ ['23989291',URMD,*,*];
+
+road_frac ['23989291',*,*]
+: Permeable_Pavement Porous_Pavement_w_UD Sand_Filter_w_UD    :=
+C         0.1                 0.1                0.8
+;
+
+urban_frac_by_comid_bmp [*,*];
+
+road_frac_by_comid_bmp [*,*]
+:          Permeable_Pavement Porous_Pavement_w_UD Sand_Filter_w_UD    :=
+'23989291'         0.1                 0.1                0.8
+;
+
+ag_frac [*,*];
+
+graz_frac ['23989291',Offsite_Water]   0
+;
+
+ripbuf_length [*,*]
+:          Forested_Buffer Grassed_Buffer    :=
+'23989291'    140695.4124    3528.662938
+;
+
+reduced_ag_load_N1 ['23989291',*,*];
+
+reduced_urb_load_N1 ['23989291',*,*]
+:         6               7           :=
+1    992.6056798    1314.458471
+2    211.166943      176.3905338
+3     11.68914825      5.822121587
+4   1050.632089      419.4600486
+;
+
+reduced_road_load_N1 ['23989291',*,*]
+:        6               7          :=
+1   60.77977542    82.57473292
+2   23.28882491    22.34036857
+3    1.741357329    0.6029620685
+4   51.71427059    21.78879985
+;
+
+riparian_reduction_load_N1 ['23989291',*,*]
+:         6               7          :=
+1   293.7273528     388.9685651
+2    62.4875602      52.19668353
+3     3.458999522     1.722855708
+4   310.8982636     124.1247075
+;
+
+septic_frac [*,*];
+
+reduced_septic_load_N1 ['23989291',*,*]
+:         6               7          :=
+1   2050.7979       2715.769944
+2    436.2867674     364.4360935
+3     24.15065839     12.02894056
+4   2170.684821      866.6359707
+;
+
+
