@@ -1,6 +1,6 @@
 ---
 title: "Run RBEROST - Pacific Batch Processing"
-date: "10/31/2025"
+date: "8/13/2026"
 output: html_document
 ---
 
@@ -13,6 +13,19 @@ The package installation may take several minutes the first time you run this co
 You may need to use renv::install("package_name") to manually install any packages that fail to install automatically. When renv::status() shows that all packages are installed, proceed to the next code chunk.
 
 ```{r configureR}
+
+# Check if renv is active (it should be if you opened via the .Rproj file)
+if (!identical(Sys.getenv("RENV_PROJECT"), normalizePath("../..", winslash = "/"))) {
+  cat("\n=======================================================================\n")
+  cat("WARNING: renv is not active!\n")
+  cat("=======================================================================\n")
+  cat("For proper package management, please:\n")
+  cat("  1. Close this file\n")
+  cat("  2. Open 'RBEROSTV2D.Rproj' in the project root\n")
+  cat("  3. This will automatically activate renv and load correct packages\n")
+  cat("  4. Then reopen this RMarkdown file\n")
+  cat("=======================================================================\n\n")
+}
 
 # Check renv status to ensure all packages are installed
 renv::status()
@@ -49,6 +62,20 @@ library(doParallel)
 library(magrittr)
 ```
 
+## Download lfs files from Zenodo (required unless using git lfs to download large files)
+
+When you download the repository from github, only placeholders for large files (>100MB) listed
+in the .gitattributes file will be downloaded.  If you are using git you can install lfs and
+download these in git.  Otherwise, you can download these files directly from a Zenodo archive
+by cutting and pasting each of the following urls into a browser (or pointing to each of the urls below and using (<Ctrl-Click>) and saving each into the .\RBEROSTV2D\RBEROST-Pacific\Preprocessing\Inputs folder then unzipping to that folder.  Don't create additional subdirectories under Inputs when unzipping any .zip files.  If those links time out then navigate to https://doi.org/10.5281/zenodo.19185509 and click on corresponding buttons to download each file.
+
+https://zenodo.org/record/21923766/files/data_puget1.zip?download=1
+https://zenodo.org/record/21923766/files/pac_sparrow_model_input.zip?download=1
+https://zenodo.org/record/21923766/files/predict_puget_tn.zip?download=1
+https://zenodo.org/record/21923766/files/predict_puget_tp.zip?download=1
+https://zenodo.org/record/21923766/files/RiparianEfficiencies_update.zip?download=1
+
+
 ## Run Batch Preprocessor
 
 To run the batch preprocessor, configure the settings below and click the green triangle. This will process multiple watersheds sequentially, creating separate output folders for each watershed containing AMPL files and NEOS results.
@@ -75,11 +102,11 @@ OutPath<-paste0(working_dir, "RBEROST-Pacific/Preprocessing/Outputs/")
 ### User Interface ###############################################################################################
 MODE <- "Select"
 # Mode Options
-# "All" will run all watersheds in Puget Sound, not currently used due to file size constraints
+# "All" will run all watersheds in Puget Sound
 # "Select" will only run select watersheds singled out in the all_watersheds vector
 
-# Select years to include in the model, e.g., 2008 (4) avg year 2011 (7) wet 2019 dry (15)
-model_years <- c("5") #, "2", ..., "16"
+# Select years to include in the model
+model_years <- c("7") #, "2", ..., "16"
 # Note: years are available from 1 to 16; corresponding to years 2005-2020
 
 # This variable represents the planning horizon in terms of years. Default is 15.
@@ -101,8 +128,8 @@ IncludeUncertainty <- FALSE
 # If running RBEROST with uncertainty, how many scenarios would you like to view? Default is 3.
 n.scenarios <- 3 
 
-# If running RBEROST with uncertainty, how different would you like the scenarios to be? Each scenario will be solved for loading limits that are a certain percentage lower than the previous. Default is 0.01, or 1%.
-scenariostepchange <- 0.01
+# If running RBEROST with uncertainty, how different would you like the scenarios to be? Each scenario will be solved for loading limits that are a certain percentage lower than the previous. Default is 0.20, or 20%.
+scenariostepchange <- 0.2
 
 
 ### BMP Specifications
@@ -116,7 +143,7 @@ scenariostepchange <- 0.01
 # NEOS configuration
 email <- "detenbeck.naomi@epa.gov"
 NEOSresults <- "RBEROST-Pacific/Outputs/Batch_Results/"
-comments <- "Batch watershed optimization no septic, avg prec year"
+comments <- "Batch watershed optimization w max load redn targets, no septic, wet year"
 
 # ----- Do not change anything below this line -------
 suppressWarnings({
@@ -135,14 +162,14 @@ invisible(source("./RBEROST-Pacific/R/Optimization_HelperFunctions-Pacific.R"))
 
 # source urban and road cost estimate code to calculate costs using selected time period
 if (!exists("final_cost_data") | !exists("final_effic_data")) {
-  invisible(source("./RBEROST-Pacific/R/00_CostandEffic_Calc.R"))
+  invisible(source("./RBEROST-Pacific/R/00_CostandEffic_Calc_ND.R"))
 }
 if (!exists("road_data") | !exists("road_effic_data") | !exists("road_area")) {
   invisible(source("./RBEROST-Pacific/R/00_ProcessRoadBMPsND.R"))
 }
 
 # Define all available watersheds - Full list of Puget Sound watersheds
-# Note: You can uncomment different list below or define a subset for testing
+# Note: You can uncomment the full list below or define a subset for testing
 
 # Puget Sound watersheds that can currently be optimized
  
@@ -165,7 +192,8 @@ all_watersheds <- c(
  "Dana Passage North",                          
  "Dana Passage South",
  "Deer Cr",
- "Des Moines Cr",                              
+ "Des Moines Cr",
+ "DeschutesR - Capitol Lake",
  "Dosewallips",
  "Duckabush",
  "Dungeness", 
@@ -255,7 +283,10 @@ all_watersheds <- c(
  "UpperSkagitToRossReservoir",
  "NForkSkykomishR",
  "SForkSkykomishR",
- "SkykomishToForks"
+ "SkykomishToForks",
+ "WhiteR",
+ "MainStillaguamishR",
+ "MainNooksackR",
 )
 
 # *Watersheds currently not optimizing due to issues with storage calculations for coastal catchments without NHDPlus flowlines, hopefully to be added in future version
@@ -275,6 +306,7 @@ all_watersheds <- c(
 # "Jarrel Cove", 
 # "Kitsap NE",
 # "Kitsap-Hood",
+# "Lake Washington",
 # "Liberty Bay",
 # "Miller Bay",                                  
 # "Miller Cr", 
@@ -289,45 +321,44 @@ all_watersheds <- c(
 # "Stillaguamish",
 # "Whatcom-Bell north",
 # "Whidbey east",
-# "Whidbey west"                                
+# "Whidbey west",
+# "MainPuyallupR"
 #)
 
 # Lakes (uncomment section below to use)
 
-#all_watersheds <- c(
-# "Ballinger Lake",
-#  "Campbell Lake",                                
-#  "Deschutes R-Capitol Lake", 
-#  "Erie Lake",                   
-#  "Fenwick Lake",
-#  "Lake Whatcom - Academy Subwatershed",         
-#  "Lake Whatcom - Agate Subwatershed",
-#  "Lake Whatcom - Anderson-Whatcom Subwatershed",
-#  "Lake Whatcom - Austin-Beaver Subwatershed",
-#  "Lake Whatcom - Blodel Subwatershed",
-#  "Lake Whatcom - Blue Canyon Subwatershed",
-#  "Lake Whatcom - Brannian Subwatershed",        
-#  "Lake Whatcom - Cable Subwatershed",
-#  "Lake Whatcom - Carpenter Subwatershed",
-#  "Lake Whatcom - Donovan Subwatershed",         
-#  "Lake Whatcom - Eagle Ridge Subwatershed",     
-#  "Lake Whatcom - Fir Subwatershed",              
-#  "Lake Whatcom - Geneva Subwatershed",          
-#  "Lake Whatcom - Hillsdale Subwatershed",       
-#  "Lake Whatcom - North Shore Subwatershed",      
-#  "Lake Whatcom - Olsen Subwatershed",           
-#  "Lake Whatcom - Oriental Subwatershed",        
-#  "Lake Whatcom - Silver Beach Subwatershed",     
-#  "Lake Whatcom - Smith-Whatcom Subwatershed",   
-#  "Lake Whatcom - South Bay Subwatershed",
-#  "Lake Whatcom - Strawberry Subwatershed",      
-#  "Lake Whatcom - Sudden Valley Subwatershed",   
-#  "Lake Washington",
-#  "Loma Lake",                                 
-#  "Sawyer Lake"
-#)
+all_watersheds <- c(
+"Ballinger Lake",
+ "Campbell Lake",
+ "Erie Lake",
+ "Fenwick Lake",
+ "Lake Whatcom - Academy Subwatershed",
+ "Lake Whatcom - Agate Subwatershed",
+ "Lake Whatcom - Anderson-Whatcom Subwatershed",
+ "Lake Whatcom - Austin-Beaver Subwatershed",
+ "Lake Whatcom - Blodel Subwatershed",
+ "Lake Whatcom - Blue Canyon Subwatershed",
+ "Lake Whatcom - Brannian Subwatershed",
+ "Lake Whatcom - Cable Subwatershed",
+ "Lake Whatcom - Carpenter Subwatershed",
+ "Lake Whatcom - Donovan Subwatershed",
+ "Lake Whatcom - Eagle Ridge Subwatershed",
+ "Lake Whatcom - Fir Subwatershed",
+ "Lake Whatcom - Geneva Subwatershed",
+ "Lake Whatcom - Hillsdale Subwatershed",
+ "Lake Whatcom - North Shore Subwatershed",
+ "Lake Whatcom - Olsen Subwatershed",
+ "Lake Whatcom - Oriental Subwatershed",
+ "Lake Whatcom - Silver Beach Subwatershed",
+ "Lake Whatcom - Smith-Whatcom Subwatershed",
+ "Lake Whatcom - South Bay Subwatershed",
+ "Lake Whatcom - Strawberry Subwatershed",
+ "Lake Whatcom - Sudden Valley Subwatershed",
+ "Lake Washington",
+ "Loma Lake",
+ "Sawyer Lake"
+)
 
- 
 # Watersheds to exclude (known to cause errors or not suitable for batch processing)
 
 exclude_watersheds <- c()
