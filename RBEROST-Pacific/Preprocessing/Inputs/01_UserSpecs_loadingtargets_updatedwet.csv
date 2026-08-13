@@ -23,7 +23,7 @@ watershed_ID,watershed_name,adjusted_daily_target_kgperday,adjusted_annual_targe
 313,Dana Passage South,60.05143077,21918.77223,0.137,TN,NA,NA
 314,Deer Cr,12.16141584,4438.916783,0.13,TN,NA,NA
 384,Des Moines Cr,38.69961261,14125.3586,0.024,TN,NA,NA
-315,Deschutes R-Capitol Lake,679.2301831,247919.0168,0.612,TN,NA,NA
+315,Deschutes R-Capitol Lake,679.2301831,247919.0168,0.3042,TN,NA,NA
 425,Discovery Bay,12.00261639,4380.954982,0.01,TN,NA,NA
 401,Dosewallips,92.75162365,33854.34263,0.235,TN,NA,NA
 402,Duckabush,84.88571272,30983.28514,0.251,TN,NA,NA
@@ -61,7 +61,7 @@ watershed_ID,watershed_name,adjusted_daily_target_kgperday,adjusted_annual_targe
 336,Ketron,3.052837509,1114.285691,0.167,TN,NA,NA
 389,Kitsap NE,16.38437637,5980.297376,0.945,TN,NA,NA
 404,Kitsap-Hood,88.34881412,32247.31716,0.01,TN,NA,NA
-390,Lake Washington,1411.78796,515302.6056,0.612,TN,NA,NA
+390,Lake Washington,1411.78796,515302.6056,0.05,TN,NA,NA
 29,Lake Whatcom - Academy Subwatershed,0,0,0,TP,NA,NA
 8,Lake Whatcom - Agate Subwatershed,0,0,0,TP,NA,NA
 21,Lake Whatcom - Anderson-Whatcom Subwatershed,0.499448695,182.2987735,0,TP,NA,NA
@@ -165,3 +165,7 @@ watershed_ID,watershed_name,adjusted_daily_target_kgperday,adjusted_annual_targe
 445,NForkSkykomishR,-99,-99,0.283,TN,NA,NA
 446,SForkSkykomishR,-99,-99,0.322,TN,NA,NA
 447,SkykomishToForks,-99,-99,0.628,TN,NA,NA
+448,MainPuyallupR,-99,-99,0.05,TN,NA,NA
+449,WhiteR,-99,-99,0.3,TN,NA,NA
+450,MainNooksackR,-99,-99,0.5949,TN,NA,NA
+451,MainStillaguamishR,-99,-99,0.2502,TN,NA,NA
