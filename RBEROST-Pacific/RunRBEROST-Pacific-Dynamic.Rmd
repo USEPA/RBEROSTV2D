@@ -1,6 +1,6 @@
 ---
 title: "Run RBEROST"
-date: "10/31/2025"
+date: "8/13/2026"
 output: html_document
 ---
 
@@ -49,6 +49,19 @@ library(rneos)
 library(doParallel)
 library(magrittr)
 ```
+## Download lfs files from Zenodo (required unless using git lfs to download large files)
+
+When you download the repository from github, only placeholders for large files (>100MB) listed
+in the .gitattributes file will be downloaded.  If you are using git you can install lfs and
+download these in git.  Otherwise, you can download these files directly from a Zenodo archive
+by cutting and pasting each of the following urls into a browser (or pointing to each of the urls below and using (<Ctrl-Click>) and saving each into the .\RBEROSTV2D\RBEROST-Pacific\Preprocessing\Inputs folder then unzipping to that folder.  Don't create additional subdirectories under Inputs when unzipping any .zip files.  If those links time out then navigate to https://doi.org/10.5281/zenodo.19185509 and click on corresponding buttons to download each file.
+
+https://zenodo.org/record/21923766/files/data_puget1.zip?download=1
+https://zenodo.org/record/21923766/files/pac_sparrow_model_input.zip?download=1
+https://zenodo.org/record/21923766/files/predict_puget_tn.zip?download=1
+https://zenodo.org/record/21923766/files/predict_puget_tp.zip?download=1
+https://zenodo.org/record/21923766/files/RiparianEfficiencies_update.zip?download=1
+
 
 ## Run SSM Model Vintage Comparison
 To run the SSM Model Vintage Comparison, ensure the two versions of the Salish Sea Model shapefiles are in the preprocessing folder and then execute the following code chunk:
@@ -86,9 +99,9 @@ horizon <- 15
 
 #This variable represents the selection of watersheds to run. Default is "Select", which runs only run watersheds named under 'watershed_choices'. Functionality does not support running "All" watershed choices yet due to file size constraints.
 
-# *Watersheds currently not optimizing due to issues with storage calculations for coastal catchments without NHDPlus flowlines, hopefully to be added in future version
-
 MODE <- "Select"
+
+# * Watersheds currently not optimizing due to issues with storage calculations for coastal catchments without NHDPlus flowlines, hopefully to be added in future version
 
 # "Agate East"
 # "Agate West"
@@ -111,7 +124,8 @@ MODE <- "Select"
 # "Dana Passage North"                          
 # "Dana Passage South"
 # "Deer Cr"
-# "Des Moines Cr"                              
+# "Des Moines Cr"  
+# "DeschutesR - Capitol Lake"
 # "Discovery Bay"*
 # "Dosewallips"
 # "Duckabush"
@@ -147,11 +161,13 @@ MODE <- "Select"
 # "Ketron"                                      
 # "Kitsap NE"*
 # "Kitsap-Hood"*
+# "Lake Washington"*
 # "Liberty Bay"*
 # "Lopez Island"
 # "Lynch Cove"
 # "Mable Taylor Cr"                             
 # "Magnolia Bch"
+# "MainPuyallupR"*
 # "Maury Island"
 # "Mayo Cove"                                   
 # "McAllister Cr"
@@ -210,7 +226,8 @@ MODE <- "Select"
 # "Woodland Cr"
 # "Young Cove"
 
-# Segments of large watersheds to be run separately to avoid time-outs
+# Segments of large watersheds to be run separately to avoid time-outs or problems w nontrib
+# catchments
 
 # "UpperNisquallyR"
 # "MiddleForkSnoqualmieR"
@@ -229,8 +246,16 @@ MODE <- "Select"
 # "NForkSkykomishR"
 # "SForkSkykomishR"
 # "SkykomishToForks"
+# "MainPuyallupR"*
+# "WhiteR"
+# "MainStillaguamishR"
+# "MainNooksackR"
+
 
 # Lake watersheds - currently set to be optimized for P only
+# NOTE: Almost all lake watersheds have nontrib catchments so will have trouble
+# optimizing under current dynamic SPARROW configuration.  For the present,
+# we suggest using RBEROSTv2s instead of RBEROSTv2D for lakes.
 
 # "Ballinger Lake"
 #  "Campbell Lake"                                
@@ -261,7 +286,8 @@ MODE <- "Select"
 #  "Lake Whatcom - Sudden Valley Subwatershed"   
 #  "Lake Washington"
 #  "Loma Lake"                                 
-#  "Sawyer Lake"                                                                  
+#  "Sawyer Lake"              
+
 # This variable determines what watersheds/targets will be included in the model.
 watershed_choices <- c("Agate East")
 
@@ -304,7 +330,7 @@ invisible(source(paste0(working_dir, "RBEROST-Pacific/R/Optimization_HelperFunct
 
 # source urban and road cost estimate code to calculate costs using selected time period
 if (!exists("final_cost_data") | !exists("final_effic_data")) {
-  invisible(source(paste0(working_dir, "RBEROST-Pacific/R/00_CostandEffic_Calc.R")))
+  invisible(source(paste0(working_dir, "RBEROST-Pacific/R/00_CostandEffic_Calc_ND.R")))
 } #*# updated for 2025USD and 99%ile cost threshold
 if (!exists("road_data") | !exists("road_effic_data") | !exists("road_area")) {
   invisible(source(paste0(working_dir, "RBEROST-Pacific/R/00_ProcessRoadBMPsND.R")))
@@ -328,7 +354,7 @@ Note: The code uses the default file names from the pre-processor. If you have c
 
 # Variables for User to Update ------------------------------------------------
 
-# Enter valid email address (normally not used but required by NEOS)
+# Enter valid email address
 email <- "detenbeck.naomi@epa.gov"
 
 # Enter a filepath where the NEOS result file will be saved.
@@ -339,7 +365,7 @@ NEOSresults <- paste0(working_dir, "RBEROST-Pacific/Preprocessing/Outputs/")
 paramname <- paste0(paste(watershed_choices, collapse = "_"), "_", Sys.Date())
 
 # Comments for NEOS run
-comments <- "Agage East 2011 w/out uncertainty"
+comments <- "Ballinger Lake wet year, season 1, min load objective"
 
 # Run NEOS optimization script-----------------------------------------------
 suppressWarnings({
