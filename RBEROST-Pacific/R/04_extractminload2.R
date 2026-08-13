@@ -17,13 +17,13 @@ library(stringr)
 base_dir <- "C:/Users/ndetenbe/OneDrive - Environmental Protection Agency (EPA)/Tier_1_Optimization-SSWR.5.3.2/RBEROST-Pacific/Preprocessing/Outputs/Batch Results"
 
 # Directory with result files to be summarized
-search_dir <- "/Season4notrib_071926"
+search_dir <- "/Lakes_season4"
 
 # Date string in results file name
-search_date <- "_2026-07-21"
+search_date <- "_2026-08-04"
 
 # Output file to save results
-output_file <- paste0(base_dir,"/Season4notrib_072126.csv")
+output_file <- paste0(base_dir,"/lakes_season4_080426.csv")
 
 # Open output file for writing
 writeLines("Wshdname,MinLoad\n", output_file)
