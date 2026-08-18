@@ -26,7 +26,6 @@
 # ND 7/20/2026 Added zeros for totalbanklength and available buffer lengths for notrib catchments
 # ND 7/20/2026 ND added road_removal_cap_N and _P
 # ND 7/21/2026 addded if/then to cover cases of zero denominators
-# ND 8/3 - 8/13/26 Added missing septic P for lakes, corrected some AMPL formatting
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### 
 # Based on: RBEROST-Northeast preprocessor, initially created by ICF under contract to EPA
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### 
@@ -48,7 +47,7 @@
 # BMPS specifications: If BMP_Selection field = X, retain BMP for optimization. Otherwise ignore. 
 
 user_specs_BMPs <- fread(
-  paste(InPath, "01_UserSpecs_BMPs_wseptic_2026.csv", sep = ""), data.table = FALSE,
+  paste(InPath, "01_UserSpecs_BMPs_wseptic.csv", sep = ""), data.table = FALSE,
   colClasses = list(numeric = c("capital_WA", "operations_WA"))
 ) #*# Updated costs to 2026USD for ag bmps, 2025USD for other management options
 
@@ -345,7 +344,7 @@ names(impervfiles) <- str_subset(list.files(path = InPath), "imperv")
 
 # Preprocessed Riparian Data
 # ND 6/23/26 Use updated PS season x year urban riparian loadings
-riparian.loadings <- fread(paste0(InPath, "RiparianLoadings_update_dynSPRW.csv")) %>%
+riparian.loadings <- fread(paste0(InPath, "RiparianLoadings_update.csv")) %>%
   rename(season = quarter)
 riparian.existingbuffer <- fread(paste0(InPath, "LengthinBuffer_2016_update.csv"))
 riparian.efficiencies <- fread(paste0(InPath, "RiparianEfficiencies_update.csv"))
@@ -8512,8 +8511,6 @@ print("Basing TP incremental equations only on actionable load components")
   }
 ) 
 }
-# if running multiple years but only interested in meeting target for the last year replace y
-  # in [c,s,y] and [s,y,'limits'] with year of interest
   
   invisible(if ("TN" %in% user_specs_loadingtargets$TN_or_TP) {
     foreach(i = 1:length(param_loads_lim_tn)) %do% {
@@ -8555,10 +8552,10 @@ print("Basing TP incremental equations only on actionable load components")
             i,
             "} (inc_storage_load_P",
             i,
-            "[c,s,y])",
+            "[c,s,7])",
             " <= loads_lim_P",
             i,
-            "[s,y,'limits'];\n"
+            "[s,7,'limits'];\n"
           ),
           file = paste(OutPath, "STmodel_seasonal.mod", sep = ""),
           sep = "\n",
