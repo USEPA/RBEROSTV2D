@@ -4,7 +4,7 @@
 # DATE: 4/1/21
 # UPDATED DATE: June 2024
 # EPA updates by Craig Connolly, Naomi Detenbeck
-# Last updated May 2026
+# Last updated August 2026
 # Costs updated to $2025 for septic, WWTP and $2026 for ag bmps
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### 
 # Based on: RBEROST-Northeast preprocessor with uncertainty.
@@ -26,7 +26,7 @@
 ### ### ### ### ### ### ### ### ###
 
 ### I. Run Preprocessor without uncertainty ------
-source(paste0(working_dir,"./RBEROST-Pacific/R/01_Optimization_Preprocessing-Pacific_V2_[PROD].R", local = TRUE))
+source(paste0(working_dir,"RBEROST-Pacific/R/01_Optimization_Preprocessing-Pacific_V2_[PROD].R"), local = TRUE)
 
 print(
   paste(
@@ -189,114 +189,308 @@ sparrow_cons_out_tn_s <- inc_tn_rev %>%
   select(comid, year, season, in_total, in_storage, sin_total, sin_storage)
 
 ### Compute transfer coefficients
-sm_N <- data.frame(
-  sparrow_cons_out_tn_s$comid,
-  sparrow_cons_out_tn_s$year,
-  sparrow_cons_out_tn_s$season,
+# sm_N <- data.frame(
+#   sparrow_cons_out_tn_s$comid,
+#   sparrow_cons_out_tn_s$year,
+#   sparrow_cons_out_tn_s$season,
   # Calculate transfer coefficients between seasons
-  ifelse(
-    sparrow_cons_out_tn_s$in_total == 0,
-    1,
-    ifelse(
-      lead(sparrow_cons_out_tn_s$in_total, default = 0) == 0,
-      sparrow_cons_out_tn_s$in_storage / lead(sparrow_cons_out_tn_s$in_total, default = 1),
-      sparrow_cons_out_tn_s$in_storage / sparrow_cons_out_tn_s$in_total
-    )
-  ),
-  # Calculate transfer coefficients standard error between seasons
-  ifelse(
-    sparrow_cons_out_tn_s$sin_total == 0,
-    1,
-    ifelse(
-      lead(sparrow_cons_out_tn_s$sin_total, default = 0) == 0,
-      my_propogateerror(
-        vals = list(
-          c(sparrow_cons_out_tn_s$in_storage, sparrow_cons_out_tn_s$sin_storage), 
-          c(lead(sparrow_cons_out_tn_s$in_total, default = 1), lead(sparrow_cons_out_tn_s$sin_total, default = 1))
-        ), 
-        method = "div"
-      ),
-      my_propogateerror(
-        vals = list(
-          c(sparrow_cons_out_tn_s$in_storage, sparrow_cons_out_tn_s$sin_storage), 
-          c(sparrow_cons_out_tn_s$in_total, sparrow_cons_out_tn_s$sin_total)
-        ), 
-        method = "div"
-      )
-    )
-  )
-) %>%
-  rename(comid = 1,
-         year = 2,
-         season = 3,
-         coeff = 4,
-         coeff_se = 5) %>%
-  mutate(across(.cols = -c(comid, year, season), .fns = ~replace_na(., replace = 0)))
+  # ifelse(
+  #   sparrow_cons_out_tn_s$in_total == 0,
+  #   1,
+  #   ifelse(
+  #     lead(sparrow_cons_out_tn_s$in_total, default = 0) == 0,
+  #     sparrow_cons_out_tn_s$in_storage / lead(sparrow_cons_out_tn_s$in_total, default = 1),
+  #     sparrow_cons_out_tn_s$in_storage / sparrow_cons_out_tn_s$in_total
+  #   )
+  # ),# 
+### Separate by season
+# ND 8/18/26 Update SE estimates for transfer coefficient (TC) to match updated calculations for TC
+sparrow_cons_out_tn_s <- sparrow_cons_out_tn %>%
+  arrange(comid, year, season) %>%
+  select(comid, year, season, PLOAD_INC_TOTAL_ND, PLOAD_INC_TOTAL, PLOAD_INC_STORAGE, PLOAD_INC_POINT1_KG,incarea,cumarea,termflag, SE_PLOAD_INC_TOTAL, SE_PLOAD_INC_TOTAL_ND, SE_PLOAD_INC_STORAGE,SE_PLOAD_INC_POINT1_KG) %>%
+  mutate(decay = PLOAD_INC_TOTAL/PLOAD_INC_TOTAL_ND,
+         PLOAD_INC_STORAGE_ND = PLOAD_INC_STORAGE/decay,
+         PLOAD_INC_POINT1_KG_ND = PLOAD_INC_POINT1_KG/decay,
+         PLOAD_INC_TOTALMINUSPOINT_ND = PLOAD_INC_TOTAL_ND - PLOAD_INC_POINT1_KG_ND,
+         PLOAD_INC_TOTALMINUSPOINT = PLOAD_INC_TOTAL - PLOAD_INC_POINT1_KG,
+         SE_decay = my_propogateerror(
+           vals = list(
+             c(PLOAD_INC_TOTAL, SE_PLOAD_INC_TOTAL), 
+             c(PLOAD_INC_TOTAL_ND, SE_PLOAD_INC_TOTAL_ND)),
+           method = "div"),
+        SE_PLOAD_INC_STORAGE_ND = my_propogateerror(
+          vals = list(
+            c(PLOAD_INC_STORAGE, SE_PLOAD_INC_STORAGE), 
+            c(decay, SE_decay)),
+        method = "div"),
+        SE_PLOAD_INC_POINT1_KG_ND = my_propogateerror(
+          vals = list(
+            c(PLOAD_INC_POINT1_KG, SE_PLOAD_INC_POINT1_KG), 
+            c(decay, SE_decay)), 
+        method = "div"),
+        SE_PLOAD_INC_TOTALMINUSPOINT_ND = my_propogateerror(
+          vals = list(
+            c(PLOAD_INC_TOTAL_ND, SE_PLOAD_INC_TOTAL_ND), 
+            c(PLOAD_INC_POINT1_KG_ND, SE_PLOAD_INC_POINT1_KG_ND)),
+        method = "addsub"),
+        SE_PLOAD_INC_TOTALMINUSPOINT = my_propogateerror(
+          vals = list(
+            c(PLOAD_INC_TOTAL, SE_PLOAD_INC_TOTAL), 
+            c(PLOAD_INC_POINT1_KG, SE_PLOAD_INC_POINT1_KG)),
+        method = "addsub"))        
 
-### Overwrite year 20 transfer coefficients, no Y21S1 to compare to
-sm_N$coeff <- ifelse(sm_N$year == 20 & sm_N$season == 4, NA, sm_N$coeff)
-sm_N$coeff_se <- ifelse(sm_N$year == 20 & sm_N$season == 4, NA, sm_N$coeff_se)
+  sm_N <- sparrow_cons_out_tn_s %>%
+    mutate(
+      notrib = if_else(
+        incarea == cumarea & termflag == 0, 1,0)
+    ) %>%
+    arrange(comid, year, season) %>%
+    group_by(comid) %>%
+    select(comid, year, season, PLOAD_INC_TOTAL_ND, PLOAD_INC_TOTALMINUSPOINT_ND, PLOAD_INC_STORAGE_ND,PLOAD_INC_STORAGE, PLOAD_INC_TOTALMINUSPOINT, 
+           SE_PLOAD_INC_TOTAL_ND, SE_PLOAD_INC_TOTALMINUSPOINT_ND, SE_PLOAD_INC_STORAGE_ND,SE_PLOAD_INC_STORAGE, SE_PLOAD_INC_TOTALMINUSPOINT,notrib) %>%
+    mutate(
+      is_first = case_when(
+        row_number() == 1 ~ TRUE,
+        TRUE ~ FALSE
+      )) %>%
+    mutate(
+      coeff = if_else(notrib == 0 & is_first == TRUE,
+                      PLOAD_INC_STORAGE_ND/lead(PLOAD_INC_TOTALMINUSPOINT_ND,3),
+                      PLOAD_INC_STORAGE_ND/lag(PLOAD_INC_TOTALMINUSPOINT_ND,n=1))) %>%
+    mutate(coeff = if_else(notrib == 1, PLOAD_INC_STORAGE/PLOAD_INC_TOTALMINUSPOINT, coeff, missing = NA)) %>%
+    mutate(
+      coeff_se = if_else(notrib == 0 & is_first == TRUE,
+          my_propogateerror(
+            vals = list(
+              c(PLOAD_INC_STORAGE_ND, SE_PLOAD_INC_STORAGE_ND), 
+              c(lead(PLOAD_INC_TOTALMINUSPOINT_ND,3), lead(SE_PLOAD_INC_TOTALMINUSPOINT_ND,3))),
+            method = "div"),
+          my_propogateerror(
+            vals = list(
+              c(PLOAD_INC_STORAGE_ND, SE_PLOAD_INC_STORAGE_ND), 
+              c(lag(PLOAD_INC_TOTALMINUSPOINT_ND,n=1), lag(SE_PLOAD_INC_TOTALMINUSPOINT_ND,n=1))),
+            method = "div"))) %>%
+    select(comid, year, season, coeff, coeff_se, notrib) # assuming constant fraction for storage on nontrib coastal catchments
+  
+  ### Overwrite year 20 transfer coefficients, no Y21S1 to compare to - set to 0
+  ### ND: Overwrite year 1 transfer coefficients for season 1 no Y0S4 to compare to
+  ### Assume previous winter load equal to current winter load
+  ### Consistent with Schmadel et al. 2024 Supplemental Text 1
+  
+  sm_N$coeff <- ifelse(sm_N$year == 2005 & sm_N$season == 1,
+                       PLOAD_INC_STORAGE_ND / lead(PLOAD_INC_TOTALMINUSPOINT_ND,n=3), 
+                       sm_N$coeff)
+  sm_N$coeff_se <- ifelse(sm_N$year == 2005 & sm_N$season == 1,
+                          my_propogateerror(
+                            vals = list(
+                              c(PLOAD_INC_STORAGE_ND, SE_PLOAD_INC_STORAGE_ND), 
+                              c(lead(PLOAD_INC_TOTALMINUSPOINT_ND,n=3), lead(SE_PLOAD_INC_TOTALMINUSPOINT_ND,n=3))),
+                            method = "div"),                        
+                       sm_N$coeff_se)  
+  
+  sm_N$coeff <- ifelse(sm_N$year == 2005 & sm_N$season == 1 & sm_N$notrib == 1,
+                       PLOAD_INC_STORAGE/PLOAD_INC_TOTALMINUSPOINT, 
+                       sm_N$coeff)
+  sm_N$coeff_se <- ifelse(sm_N$year == 2005 & sm_N$season == 1,
+                          my_propogateerror(
+                            vals = list(
+                              c(PLOAD_INC_STORAGE_ND, SE_PLOAD_INC_STORAGE_ND), 
+                              c(PLOAD_INC_TOTALMINUSPOINT, SE_PLOAD_INC_TOTALMINUSPOINT)),
+                            method = "div"),                        
+                          sm_N$coeff_se)  
+  
+  
+#   # Calculate transfer coefficients standard error between seasons
+#   ifelse(
+#     sparrow_cons_out_tn_s$sin_total == 0,
+#     1,
+#     ifelse(
+#       lag(sparrow_cons_out_tn_s$sin_total, default = 0) == 0,
+#       my_propogateerror(
+#         vals = list(
+#           c(sparrow_cons_out_tn_s$in_storage, sparrow_cons_out_tn_s$sin_storage), 
+#           c(lag(sparrow_cons_out_tn_s$in_total, default = 1), lag(sparrow_cons_out_tn_s$sin_total, default = 1))
+#         ), 
+#         method = "div"
+#       ),
+#       my_propogateerror(
+#         vals = list(
+#           c(sparrow_cons_out_tn_s$in_storage, sparrow_cons_out_tn_s$sin_storage), 
+#           c(sparrow_cons_out_tn_s$in_total, sparrow_cons_out_tn_s$sin_total)
+#         ), 
+#         method = "div"
+#       )
+#     )
+#   )
+# ) %>%
+#   rename(comid = 1,
+#          year = 2,
+#          season = 3,
+#          coeff = 4,
+#          coeff_se = 5) %>%
+#   mutate(across(.cols = -c(comid, year, season), .fns = ~replace_na(., replace = 0)))
+# 
+# ### Overwrite year 20 transfer coefficients, no Y21S1 to compare to
+# sm_N$coeff <- ifelse(sm_N$year == 20 & sm_N$season == 4, NA, sm_N$coeff)
+# sm_N$coeff_se <- ifelse(sm_N$year == 20 & sm_N$season == 4, NA, sm_N$coeff_se)
 
 
 #
 #
 ## Prep TP Data by Season ---------
-sparrow_cons_out_tp_s <- inc_tp_rev %>% 
+
+# sparrow_cons_out_tp_s <- inc_tp_rev %>% 
+#   arrange(comid, year, season) %>%
+#   select(comid, year, season, ip_total, ip_storage, sip_total, sip_storage)
+# 
+# ### Compute transfer coefficients
+# sm_P <- data.frame(
+#   sparrow_cons_out_tp_s$comid,
+#   sparrow_cons_out_tp_s$year,
+#   sparrow_cons_out_tp_s$season,
+#   # Calculate transfer coefficients between seasons
+#   ifelse(
+#     sparrow_cons_out_tp_s$ip_total == 0,
+#     1,
+#     ifelse(
+#       lead(sparrow_cons_out_tp_s$ip_total, default = 0) == 0,
+#       sparrow_cons_out_tp_s$ip_storage / lead(sparrow_cons_out_tp_s$ip_total, default = 1),
+#       sparrow_cons_out_tp_s$ip_storage / sparrow_cons_out_tp_s$ip_total
+#     )
+#   ),
+#   # Calculate transfer coefficients standard error between seasons
+#   ifelse(
+#     sparrow_cons_out_tp_s$sip_total == 0,
+#     1,
+#     ifelse(
+#       lead(sparrow_cons_out_tp_s$sip_total, default = 0) == 0,
+#       my_propogateerror(
+#         vals = list(
+#           c(sparrow_cons_out_tp_s$ip_storage, sparrow_cons_out_tp_s$sip_storage), 
+#           c(lead(sparrow_cons_out_tp_s$ip_total, default = 1), lead(sparrow_cons_out_tp_s$sip_total, default = 1))
+#         ), 
+#         method = "div"
+#       ),
+#       my_propogateerror(
+#         vals = list(
+#           c(sparrow_cons_out_tp_s$ip_storage, sparrow_cons_out_tp_s$sip_storage), 
+#           c(sparrow_cons_out_tp_s$ip_total, sparrow_cons_out_tp_s$sip_total)
+#         ), 
+#         method = "div"
+#       )
+#     )
+#   )
+# ) %>%
+#   rename(comid = 1,
+#          year = 2,
+#          season = 3,
+#          coeff = 4,
+#          coeff_se = 5) %>%
+#   mutate(across(.cols = -c(comid, year, season), .fns = ~replace_na(., replace = 0)))
+# 
+# ### Overwrite year 20 transfer coefficients, no Y21S1 to compare to
+# sm_P$coeff <- ifelse(sm_P$year == 20 & sm_P$season == 4, NA, sm_P$coeff)
+# sm_P$coeff_se <- ifelse(sm_P$year == 20 & sm_P$season == 4, NA, sm_P$coeff_se)
+
+# ND 8/18/26 Update SE estimates for transfer coefficient (TC) to match updated calculations for TC
+sparrow_cons_out_tp_s <- sparrow_cons_out_tp %>%
   arrange(comid, year, season) %>%
-  select(comid, year, season, ip_total, ip_storage, sip_total, sip_storage)
+  select(comid, year, season, PLOAD_INC_TOTAL_ND, PLOAD_INC_TOTAL, PLOAD_INC_STORAGE, PLOAD_INC_POINT1_KG,incarea,cumarea,termflag, SE_PLOAD_INC_TOTAL, SE_PLOAD_INC_TOTAL_ND, SE_PLOAD_INC_STORAGE,SE_PLOAD_INC_POINT1_KG) %>%
+  mutate(decay = PLOAD_INC_TOTAL/PLOAD_INC_TOTAL_ND,
+         PLOAD_INC_STORAGE_ND = PLOAD_INC_STORAGE/decay,
+         PLOAD_INC_POINT1_KG_ND = PLOAD_INC_POINT1_KG/decay,
+         PLOAD_INC_TOTALMINUSPOINT_ND = PLOAD_INC_TOTAL_ND - PLOAD_INC_POINT1_KG_ND,
+         PLOAD_INC_TOTALMINUSPOINT = PLOAD_INC_TOTAL - PLOAD_INC_POINT1_KG,
+         SE_decay = my_propogateerror(
+           vals = list(
+             c(PLOAD_INC_TOTAL, SE_PLOAD_INC_TOTAL), 
+             c(PLOAD_INC_TOTAL_ND, SE_PLOAD_INC_TOTAL_ND)),
+           method = "div"),
+         SE_PLOAD_INC_STORAGE_ND = my_propogateerror(
+           vals = list(
+             c(PLOAD_INC_STORAGE, SE_PLOAD_INC_STORAGE), 
+             c(decay, SE_decay)),
+           method = "div"),
+         SE_PLOAD_INC_POINT1_KG_ND = my_propogateerror(
+           vals = list(
+             c(PLOAD_INC_POINT1_KG, SE_PLOAD_INC_POINT1_KG), 
+             c(decay, SE_decay)), 
+           method = "div"),
+         SE_PLOAD_INC_TOTALMINUSPOINT_ND = my_propogateerror(
+           vals = list(
+             c(PLOAD_INC_TOTAL_ND, SE_PLOAD_INC_TOTAL_ND), 
+             c(PLOAD_INC_POINT1_KG_ND, SE_PLOAD_INC_POINT1_KG_ND)),
+           method = "addsub"),
+         SE_PLOAD_INC_TOTALMINUSPOINT = my_propogateerror(
+           vals = list(
+             c(PLOAD_INC_TOTAL, SE_PLOAD_INC_TOTAL), 
+             c(PLOAD_INC_POINT1_KG, SE_PLOAD_INC_POINT1_KG)),
+           method = "addsub"))        
 
-### Compute transfer coefficients
-sm_P <- data.frame(
-  sparrow_cons_out_tp_s$comid,
-  sparrow_cons_out_tp_s$year,
-  sparrow_cons_out_tp_s$season,
-  # Calculate transfer coefficients between seasons
-  ifelse(
-    sparrow_cons_out_tp_s$ip_total == 0,
-    1,
-    ifelse(
-      lead(sparrow_cons_out_tp_s$ip_total, default = 0) == 0,
-      sparrow_cons_out_tp_s$ip_storage / lead(sparrow_cons_out_tp_s$ip_total, default = 1),
-      sparrow_cons_out_tp_s$ip_storage / sparrow_cons_out_tp_s$ip_total
-    )
-  ),
-  # Calculate transfer coefficients standard error between seasons
-  ifelse(
-    sparrow_cons_out_tp_s$sip_total == 0,
-    1,
-    ifelse(
-      lead(sparrow_cons_out_tp_s$sip_total, default = 0) == 0,
-      my_propogateerror(
-        vals = list(
-          c(sparrow_cons_out_tp_s$ip_storage, sparrow_cons_out_tp_s$sip_storage), 
-          c(lead(sparrow_cons_out_tp_s$ip_total, default = 1), lead(sparrow_cons_out_tp_s$sip_total, default = 1))
-        ), 
-        method = "div"
-      ),
-      my_propogateerror(
-        vals = list(
-          c(sparrow_cons_out_tp_s$ip_storage, sparrow_cons_out_tp_s$sip_storage), 
-          c(sparrow_cons_out_tp_s$ip_total, sparrow_cons_out_tp_s$sip_total)
-        ), 
-        method = "div"
-      )
-    )
-  )
-) %>%
-  rename(comid = 1,
-         year = 2,
-         season = 3,
-         coeff = 4,
-         coeff_se = 5) %>%
-  mutate(across(.cols = -c(comid, year, season), .fns = ~replace_na(., replace = 0)))
+sm_P <- sparrow_cons_out_tp_s %>%
+  mutate(
+    notrib = if_else(
+      incarea == cumarea & termflag == 0, 1,0)
+  ) %>%
+  arrange(comid, year, season) %>%
+  group_by(comid) %>%
+  select(comid, year, season, PLOAD_INC_TOTAL_ND, PLOAD_INC_TOTALMINUSPOINT_ND, PLOAD_INC_STORAGE_ND,PLOAD_INC_STORAGE, PLOAD_INC_TOTALMINUSPOINT, 
+         SE_PLOAD_INC_TOTAL_ND, SE_PLOAD_INC_TOTALMINUSPOINT_ND, SE_PLOAD_INC_STORAGE_ND,SE_PLOAD_INC_STORAGE, SE_PLOAD_INC_TOTALMINUSPOINT,notrib) %>%
+  mutate(
+    is_first = case_when(
+      row_number() == 1 ~ TRUE,
+      TRUE ~ FALSE
+    )) %>%
+  mutate(
+    coeff = if_else(notrib == 0 & is_first == TRUE,
+                    PLOAD_INC_STORAGE_ND/lead(PLOAD_INC_TOTALMINUSPOINT_ND,3),
+                    PLOAD_INC_STORAGE_ND/lag(PLOAD_INC_TOTALMINUSPOINT_ND,n=1))) %>%
+  mutate(coeff = if_else(notrib == 1, PLOAD_INC_STORAGE/PLOAD_INC_TOTALMINUSPOINT, coeff, missing = NA)) %>%
+  mutate(
+    coeff_se = if_else(notrib == 0 & is_first == TRUE,
+                       my_propogateerror(
+                         vals = list(
+                           c(PLOAD_INC_STORAGE_ND, SE_PLOAD_INC_STORAGE_ND), 
+                           c(lead(PLOAD_INC_TOTALMINUSPOINT_ND,3), lead(SE_PLOAD_INC_TOTALMINUSPOINT_ND,3))),
+                         method = "div"),
+                       my_propogateerror(
+                         vals = list(
+                           c(PLOAD_INC_STORAGE_ND, SE_PLOAD_INC_STORAGE_ND), 
+                           c(lag(PLOAD_INC_TOTALMINUSPOINT_ND,n=1), lag(SE_PLOAD_INC_TOTALMINUSPOINT_ND,n=1))),
+                         method = "div"))) %>%
+  select(comid, year, season, coeff, coeff_se, notrib) # assuming constant fraction for storage on nontrib coastal catchments
 
-### Overwrite year 20 transfer coefficients, no Y21S1 to compare to
-sm_P$coeff <- ifelse(sm_P$year == 20 & sm_P$season == 4, NA, sm_P$coeff)
-sm_P$coeff_se <- ifelse(sm_P$year == 20 & sm_P$season == 4, NA, sm_P$coeff_se)
+### Overwrite year 20 transfer coefficients, no Y21S1 to compare to - set to 0
+### ND: Overwrite year 1 transfer coefficients for season 1 no Y0S4 to compare to
+### Assume previous winter load equal to current winter load
+### Consistent with Schmadel et al. 2024 Supplemental Text 1
+
+sm_P$coeff <- ifelse(sm_P$year == 2005 & sm_P$season == 1,
+                     PLOAD_INC_STORAGE_ND / lead(PLOAD_INC_TOTALMINUSPOINT_ND,n=3), 
+                     sm_P$coeff)
+sm_P$coeff_se <- ifelse(sm_P$year == 2005 & sm_P$season == 1,
+                        my_propogateerror(
+                          vals = list(
+                            c(PLOAD_INC_STORAGE_ND, SE_PLOAD_INC_STORAGE_ND), 
+                            c(lead(PLOAD_INC_TOTALMINUSPOINT_ND,n=3), lead(SE_PLOAD_INC_TOTALMINUSPOINT_ND,n=3))),
+                          method = "div"),                        
+                        sm_P$coeff_se)  
+
+sm_P$coeff <- ifelse(sm_P$year == 2005 & sm_P$season == 1 & sm_P$notrib == 1,
+                     PLOAD_INC_STORAGE/PLOAD_INC_TOTALMINUSPOINT, 
+                     sm_P$coeff)
+sm_P$coeff_se <- ifelse(sm_P$year == 2005 & sm_P$season == 1,
+                        my_propogateerror(
+                          vals = list(
+                            c(PLOAD_INC_STORAGE_ND, SE_PLOAD_INC_STORAGE_ND), 
+                            c(PLOAD_INC_TOTALMINUSPOINT, SE_PLOAD_INC_TOTALMINUSPOINT)),
+                          method = "div"),                        
+                        sm_P$coeff_se)
+
 
 # # Transfer coefficient threshold
 if (use_threshold) {
-  sm_N[,4][sm_N[,4] > threshold] <- 0
+  sm_P[,4][sm_P[,4] > threshold] <- 0
   sm_P[,4][sm_P[,4] > threshold] <- 0
 }
 
@@ -350,6 +544,7 @@ temp_sm_P_dat_other_se <- foreach(i = 1:length(temp_sm_P_dat_se)) %do% {
 }
 
 ## Format transfer coefficients -----
+# ND 8/18/26 Correct sorting of values by 1 comid, 2 year, 3 season
 if("TN" %in% user_specs_loadingtargets$TN_or_TP) {
   sm_N_dat_se <- foreach(i = 1:length(temp_sm_N_dat_SC_se)) %do% {
     if (!is.null(temp_sm_N_dat_SC_se[[i]]) && nrow(temp_sm_N_dat_SC_se[[i]]) > 0) {
@@ -364,7 +559,8 @@ if("TN" %in% user_specs_loadingtargets$TN_or_TP) {
         merge(., year_xwalk, by = "year") %>%
         select(-year) %>%
         rename(year = model_year) %>%
-        select(c('comid_form', season, year, 'coeff'))
+        select(c('comid_form', season, year, 'coeff', 'notrib')) %>%
+        arrange(comid_form, year, season)
     } else {
       NULL
     }
@@ -382,7 +578,8 @@ if("TP" %in% user_specs_loadingtargets$TN_or_TP[user_specs_loadingtargets$waters
         merge(., year_xwalk, by = "year") %>%
         select(-year) %>%
         rename(year = model_year) %>%
-        select(c('comid_form', season, year, 'coeff'))
+        select(c('comid_form', season, year, 'coeff', 'notrib')) %>%
+        arrange(comid_form, year, season)
     } else {
       NULL  # Skip empty data frames
     }
@@ -3942,7 +4139,7 @@ invisible(
         
         # Write the header for the storage coefficients
         write(
-          paste0("\nparam transfer_coefficients_N", i, "_se : 'coeff' :="),
+          paste0("\nparam transfer_coefficients_N", i, "_se : 'coeff' 'notrib' :="),
           file = paste(OutPath, "STdata_dynamic_uncertainty.dat", sep = ""),
           append = TRUE
         )
@@ -4010,7 +4207,7 @@ invisible(
       } else {
         # If the data is NULL or empty, write a message
         write(
-          paste0("\nparam transfer_coefficients_P", i, "_se : 'coeff' :=\n;"),
+          paste0("\nparam transfer_coefficients_P", i, "_se : 'coeff' 'notrib' :=\n;"),
           file = paste(OutPath, "STdata_dynamic_uncertainty.dat", sep = ""),
           append = TRUE
         )
@@ -5563,12 +5760,12 @@ invisible(
     }
   }
 )
-
+# ND 8/18/26 Changed index to transfer_types
 invisible(
   if("TN" %in% user_specs_loadingtargets$TN_or_TP[user_specs_loadingtargets$watershed_name %in% target_selection]) {
   foreach(i = 1:length(sm_N_dat_se)) %do% {
     cat(
-      paste0("param transfer_coefficients_N", i, "_se {comid_N", i, ", seasons, years, coeff};"),
+      paste0("param transfer_coefficients_N", i, "_se {comid_N", i, ", seasons, years, transfer_types};"),
       file = paste(OutPath, "STmodel_dynamic_uncertainty.mod", sep = ""),
       sep = "\n",
       append = T
@@ -5583,7 +5780,7 @@ invisible(
   if("TP" %in% user_specs_loadingtargets$TN_or_TP[user_specs_loadingtargets$watershed_name %in% target_selection]) {
     foreach(i = 1:length(sm_P_dat_se)) %do% {
       cat(
-        paste0("param transfer_coefficients_P", i, "_se {comid_P", i, ", seasons, years, coeff};"),
+        paste0("param transfer_coefficients_P", i, "_se {comid_P", i, ", seasons, years, transfer_types};"),
         file = paste(OutPath, "STmodel_dynamic_uncertainty.mod", sep = ""),
         sep = "\n",
         append = T
@@ -5777,7 +5974,7 @@ invisible(
           "_rev {comid_P",i,",seasons, years, loads_riparian, Bootstraps};"
         ),   
         file = paste(OutPath, "STmodel_dynamic_uncertainty.mod", sep=""),
-        sep = "", 
+        sep = "\n", 
         append = T
       )
     }
@@ -5788,7 +5985,7 @@ invisible(
   if("TN" %in% user_specs_loadingtargets$TN_or_TP) {
     foreach(i = 1:length(sm_N_dat)) %do% {
       cat(
-        paste0("param transfer_coefficients_N", i, "_rev {comid_N", i, ", seasons, years, coeff, Bootstraps};"),
+        paste0("param transfer_coefficients_N", i, "_rev {comid_N", i, ", seasons, years, transfer_types, Bootstraps};"),
         file = paste(OutPath, "STmodel_dynamic_uncertainty.mod", sep = ""),
         sep = "\n",
         append = T
@@ -5803,7 +6000,7 @@ invisible(
   if("TP" %in% user_specs_loadingtargets$TN_or_TP[user_specs_loadingtargets$watershed_name %in% target_selection]) {
     foreach(i = 1:length(sm_P_dat)) %do% {
       cat(
-        paste0("param transfer_coefficients_P", i, "_rev  {comid_P", i, ", seasons, years, coeff, Bootstraps};"),
+        paste0("param transfer_coefficients_P", i, "_rev  {comid_P", i, ", seasons, years, transfer_types, Bootstraps};"),
         file = paste(OutPath, "STmodel_dynamic_uncertainty.mod", sep = ""),
         sep = "\n",
         append = T
