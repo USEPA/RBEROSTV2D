@@ -46,12 +46,12 @@ road,Permeable_Pavement,X,0,0.1,NA,NA,acre,acre,NA,NA,NA,NA,New development cost
 road,Porous_Pavement_w_UD,X,0,0.1,NA,NA,acre,acre,NA,NA,NA,NA,"Note: different depth type - ""depth of filter course area in inches"". NH specifies filter course depths of 8-12"".",
 road,Sand_Filter_w_UD,X,0,1,NA,NA,acre,acre,NA,NA,NA,NA,New development costs,
 road,Wet_Pond,X,0,1,NA,NA,acre,acre,NA,NA,NA,NA,New development costs,
-septic,class_1_upgrade,X,NA,NA,65508.86,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
-septic,class_2_upgrade,X,NA,NA,36199.78,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
-septic,class_3_upgrade,X,NA,NA,42890.17,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
-septic,class_4_upgrade,X,NA,NA,31656.54,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
-septic,class_5_upgrade,X,NA,NA,98263.3,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
-septic,class_6_upgrade,X,NA,NA,54299.66,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
-septic,class_7_upgrade,X,NA,NA,64335.24,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
-septic,class_8_upgrade,X,NA,NA,47484.81,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
-septic,Sewer_convert,X,NA,NA,63800.49,470,parcel,parcel,NA,NA,NA,NA,NA,NA
+septic,class_1_upgrade,,NA,NA,65508.86,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
+septic,class_2_upgrade,,NA,NA,36199.78,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
+septic,class_3_upgrade,,NA,NA,42890.17,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
+septic,class_4_upgrade,,NA,NA,31656.54,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
+septic,class_5_upgrade,,NA,NA,98263.3,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
+septic,class_6_upgrade,,NA,NA,54299.66,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
+septic,class_7_upgrade,,NA,NA,64335.24,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
+septic,class_8_upgrade,,NA,NA,47484.81,772.1078,parcel,parcel,NA,NA,NA,NA,NA,NA
+septic,Sewer_convert,,NA,NA,63800.49,470,parcel,parcel,NA,NA,NA,NA,NA,NA
