@@ -14,7 +14,7 @@
 ################################################################################
 batchpath <- "C:/Users/ndetenbe/OneDrive - Environmental Protection Agency (EPA)/RBEROSTV2D/RBEROST-Pacific/Preprocessing/Outputs/"
 watershed <- ""
-resultfile <- "NEOSresult_Nisqually R_2026-08-17"
+resultfile <- "NEOSresult_LowerStillaguamishR_2026-08-19_nounc"
 infile1 <- paste0(batchpath,watershed,resultfile,".txt")
 outfile1 <- paste0(batchpath,watershed,resultfile,"_corr.txt")
 infile2 <- outfile1
