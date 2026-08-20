@@ -8552,10 +8552,10 @@ print("Basing TP incremental equations only on actionable load components")
             i,
             "} (inc_storage_load_P",
             i,
-            "[c,s,7])",
+            "[c,s,y])",
             " <= loads_lim_P",
             i,
-            "[s,7,'limits'];\n"
+            "[s,y,'limits'];\n"
           ),
           file = paste(OutPath, "STmodel_seasonal.mod", sep = ""),
           sep = "\n",
